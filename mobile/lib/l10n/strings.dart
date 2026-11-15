@@ -22,7 +22,10 @@ class S {
   }
 
   static const _en = {
-    'subscribe_hint': 'Enter the address of your Tocsin server and the name of the topic. Private topics ask for your account.',
+    'subscribe_hint': 'Enter the name of the topic. Public topics need no account; private topics ask you to sign in.',
+    'server': 'Server',
+    'change': 'Change',
+    'default_server': 'Default',
     'unread_count': ':count unread',
     'unread_one': '1 unread',
     'topics_label': 'Topics',
@@ -117,7 +120,10 @@ class S {
   };
 
   static const _fr = {
-    'subscribe_hint': 'Saisissez l’adresse de votre serveur Tocsin et le nom du topic. Les topics privés demandent votre compte.',
+    'subscribe_hint': 'Saisissez le nom du topic. Les topics publics ne demandent aucun compte ; les topics privés vous demandent de vous connecter.',
+    'server': 'Serveur',
+    'change': 'Modifier',
+    'default_server': 'Par défaut',
     'unread_count': ':count non lus',
     'unread_one': '1 non lu',
     'topics_label': 'Topics',

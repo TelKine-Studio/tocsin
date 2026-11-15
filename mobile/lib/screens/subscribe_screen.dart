@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../config.dart';
 import '../l10n/strings.dart';
 import '../services/api_client.dart';
 import '../state/app_state.dart';
@@ -22,12 +23,23 @@ class _SubscribeScreenState extends State<SubscribeScreen> {
   bool _busy = false;
   String? _error;
 
+  /// The server field is only shown when the user wants another server.
+  bool _editServer = false;
+
   @override
   void initState() {
     super.initState();
+    _server.text = kDefaultServer;
     context.read<AppState>().storage.lastServerUrl().then((url) {
-      if (url != null && _server.text.isEmpty && mounted) _server.text = url;
+      if (url != null && mounted) setState(() => _server.text = url);
     });
+  }
+
+  String get _serverHost {
+    final value = _server.text.trim();
+    return Uri.tryParse(value.contains('://') ? value : 'https://$value')
+            ?.host ??
+        value;
   }
 
   @override
@@ -161,33 +173,88 @@ class _SubscribeScreenState extends State<SubscribeScreen> {
                 ),
               ),
               const SizedBox(height: 28),
-              TextFormField(
-                controller: _server,
-                keyboardType: TextInputType.url,
-                autocorrect: false,
-                textInputAction: TextInputAction.next,
-                decoration: InputDecoration(
-                  labelText: s.t('server_url'),
-                  hintText: s.t('server_url_hint'),
-                  prefixIcon: const Icon(Icons.dns_outlined),
+              if (_editServer) ...[
+                TextFormField(
+                  controller: _server,
+                  keyboardType: TextInputType.url,
+                  autocorrect: false,
+                  autofocus: true,
+                  textInputAction: TextInputAction.next,
+                  decoration: InputDecoration(
+                    labelText: s.t('server_url'),
+                    hintText: s.t('server_url_hint'),
+                    prefixIcon: const Icon(Icons.dns_outlined),
+                    suffixIcon: _serverHost == kDefaultServer
+                        ? null
+                        : IconButton(
+                            tooltip: s.t('default_server'),
+                            icon: const Icon(Icons.restart_alt_rounded),
+                            onPressed: () =>
+                                setState(() => _server.text = kDefaultServer),
+                          ),
+                  ),
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? s.t('required') : null,
                 ),
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? s.t('required') : null,
-              ),
-              if (known.length > 1) ...[
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    for (final server in known)
-                      ActionChip(
-                        label: Text(server.host),
-                        onPressed: () =>
-                            setState(() => _server.text = server.url),
+                if (known.length > 1) ...[
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      for (final server in known)
+                        ActionChip(
+                          label: Text(server.host),
+                          onPressed: () =>
+                              setState(() => _server.text = server.url),
+                        ),
+                    ],
+                  ),
+                ],
+              ] else
+                // Default server, with a discreet way to use another one.
+                Container(
+                  padding: const EdgeInsets.fromLTRB(14, 6, 6, 6),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHighest.withValues(
+                      alpha: 0.5,
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.dns_outlined,
+                        size: 20,
+                        color: theme.colorScheme.onSurfaceVariant,
                       ),
-                  ],
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text.rich(
+                          TextSpan(
+                            text: '${s.t('server')}  ',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                            children: [
+                              TextSpan(
+                                text: _serverHost,
+                                style: TextStyle(
+                                  color: theme.colorScheme.onSurface,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => setState(() => _editServer = true),
+                        child: Text(s.t('change')),
+                      ),
+                    ],
+                  ),
                 ),
-              ],
               const SizedBox(height: 14),
               TextFormField(
                 controller: _topic,
