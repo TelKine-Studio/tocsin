@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../models/models.dart';
+import '../services/icon_cache.dart';
 import '../services/api_client.dart';
 import '../services/push_service.dart';
 import '../services/action_runner.dart';
@@ -64,6 +65,10 @@ class AppState extends ChangeNotifier {
   Future<void> init() async {
     servers = await storage.loadServers();
     subscriptions = await storage.loadSubscriptions();
+    // Logos already on disk are decoded before the first frame.
+    await IconCache.warm(
+      subscriptions.map((s) => s.iconUrl).whereType<String>(),
+    );
     loading = false;
 
     // Keep the tokens shared with the notification extension up to date.

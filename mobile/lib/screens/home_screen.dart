@@ -48,23 +48,39 @@ class HomeScreen extends StatelessWidget {
                 child: CustomScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   slivers: [
-                    SliverAppBar.large(
-                      title: Text(
-                        s.t('subscriptions'),
-                        style: const TextStyle(fontWeight: FontWeight.w700),
+                    // The expanded title uses headlineMedium: larger here
+                    // only, the collapsed title keeps the bar's size.
+                    Theme(
+                      data: theme.copyWith(
+                        textTheme: theme.textTheme.copyWith(
+                          headlineMedium: theme.textTheme.headlineMedium
+                              ?.copyWith(fontSize: 36, height: 1.1),
+                        ),
                       ),
-                      actions: [
-                        IconButton(
-                          tooltip: s.t('settings'),
-                          icon: const Icon(Icons.tune_rounded),
-                          onPressed: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const SettingsScreen(),
-                            ),
+                      child: SliverAppBar.large(
+                        // iOS-like large title: big when expanded, the
+                        // regular size once collapsed in the bar.
+                        expandedHeight: 132,
+                        title: Text(
+                          s.t('subscriptions'),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.6,
                           ),
                         ),
-                        const SizedBox(width: 8),
-                      ],
+                        actions: [
+                          IconButton(
+                            tooltip: s.t('settings'),
+                            icon: const Icon(Icons.tune_rounded),
+                            onPressed: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const SettingsScreen(),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                        ],
+                      ),
                     ),
                     if (subscriptions.isEmpty)
                       SliverFillRemaining(

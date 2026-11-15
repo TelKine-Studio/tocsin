@@ -1,7 +1,66 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/strings.dart';
+import '../services/icon_cache.dart';
 import '../theme.dart';
+
+/// Logo from [IconCache]: painted on the first frame once cached, the
+/// initial is shown only the first time it is downloaded.
+class _TopicLogo extends StatefulWidget {
+  const _TopicLogo({
+    required this.url,
+    required this.size,
+    required this.fallback,
+  });
+
+  final String url;
+  final double size;
+  final Widget fallback;
+
+  @override
+  State<_TopicLogo> createState() => _TopicLogoState();
+}
+
+class _TopicLogoState extends State<_TopicLogo> {
+  ImageProvider? _image;
+
+  @override
+  void initState() {
+    super.initState();
+    _resolve();
+  }
+
+  @override
+  void didUpdateWidget(_TopicLogo old) {
+    super.didUpdateWidget(old);
+    if (old.url != widget.url) _resolve();
+  }
+
+  void _resolve() {
+    final url = widget.url;
+    _image = IconCache.ready(url);
+    if (_image != null) return;
+    IconCache.load(url).then((image) {
+      if (mounted && image != null && widget.url == url) {
+        setState(() => _image = image);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final image = _image;
+    if (image == null) return widget.fallback;
+    return Image(
+      image: image,
+      width: widget.size,
+      height: widget.size,
+      fit: BoxFit.cover,
+      gaplessPlayback: true,
+      errorBuilder: (_, _, _) => widget.fallback,
+    );
+  }
+}
 
 class TopicAvatar extends StatelessWidget {
   const TopicAvatar({
@@ -53,15 +112,7 @@ class TopicAvatar extends StatelessWidget {
             clipBehavior: Clip.antiAlias,
             child: iconUrl == null
                 ? initial
-                : Image.network(
-                    iconUrl!,
-                    width: size,
-                    height: size,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => initial,
-                    frameBuilder: (context, child, frame, sync) =>
-                        frame == null && !sync ? initial : child,
-                  ),
+                : _TopicLogo(url: iconUrl!, size: size, fallback: initial),
           ),
         ],
       ),
