@@ -21,14 +21,7 @@ class SettingsScreen extends StatelessWidget {
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          // Title on the same line as the back button.
-          SliverAppBar(
-            pinned: true,
-            title: Text(
-              s.t('settings'),
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-          ),
+          LargeTitleBar(title: s.t('settings')),
           SliverList.list(
             children: [
               SettingsSection(
@@ -37,6 +30,7 @@ class SettingsScreen extends StatelessWidget {
               ),
               SettingsSection(
                 title: s.t('servers'),
+                footer: s.t('servers_hint'),
                 children: state.servers.isEmpty
                     ? [
                         ListTile(
@@ -82,7 +76,8 @@ class SettingsScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 40),
+              // Room for the floating tab bar.
+              const SizedBox(height: 120),
             ],
           ),
         ],

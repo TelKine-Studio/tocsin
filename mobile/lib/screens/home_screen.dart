@@ -6,7 +6,6 @@ import '../models/models.dart';
 import '../services/push_service.dart';
 import '../state/app_state.dart';
 import '../widgets/common.dart';
-import 'settings_screen.dart';
 import 'subscribe_screen.dart';
 import 'topic_screen.dart';
 
@@ -27,17 +26,6 @@ class HomeScreen extends StatelessWidget {
     final unread = state.totalUnread;
 
     return Scaffold(
-      floatingActionButton: subscriptions.isEmpty
-          ? null
-          : FloatingActionButton(
-              tooltip: s.t('subscribe'),
-              onPressed: () => _openSubscribe(context),
-              backgroundColor: theme.colorScheme.primary,
-              foregroundColor: theme.colorScheme.onPrimary,
-              elevation: 2,
-              shape: const CircleBorder(),
-              child: const Icon(Icons.add_rounded, size: 30),
-            ),
       body: state.loading
           ? const Center(child: CircularProgressIndicator())
           : ValueListenableBuilder<Set<String>>(
@@ -48,40 +36,7 @@ class HomeScreen extends StatelessWidget {
                 child: CustomScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   slivers: [
-                    // The expanded title uses headlineMedium: larger here
-                    // only, the collapsed title keeps the bar's size.
-                    Theme(
-                      data: theme.copyWith(
-                        textTheme: theme.textTheme.copyWith(
-                          headlineMedium: theme.textTheme.headlineMedium
-                              ?.copyWith(fontSize: 36, height: 1.1),
-                        ),
-                      ),
-                      child: SliverAppBar.large(
-                        // iOS-like large title: big when expanded, the
-                        // regular size once collapsed in the bar.
-                        expandedHeight: 132,
-                        title: Text(
-                          s.t('subscriptions'),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.6,
-                          ),
-                        ),
-                        actions: [
-                          IconButton(
-                            tooltip: s.t('settings'),
-                            icon: const Icon(Icons.tune_rounded),
-                            onPressed: () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const SettingsScreen(),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                        ],
-                      ),
-                    ),
+                    LargeTitleBar(title: s.t('subscriptions')),
                     if (subscriptions.isEmpty)
                       SliverFillRemaining(
                         hasScrollBody: false,

@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 
 import 'l10n/strings.dart';
 import 'models/models.dart';
-import 'screens/home_screen.dart';
+import 'screens/app_shell.dart';
 import 'services/action_runner.dart';
 import 'screens/topic_screen.dart';
 import 'services/push_service.dart';
@@ -132,7 +132,7 @@ class _TocsinAppState extends State<TocsinApp> with WidgetsBindingObserver {
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
         ],
-        home: const HomeScreen(),
+        home: const AppShell(),
       ),
     );
   }

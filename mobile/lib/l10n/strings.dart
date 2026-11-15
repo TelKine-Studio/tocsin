@@ -74,6 +74,8 @@ class S {
     'server_actions': 'Server',
     'settings': 'Settings',
     'servers': 'Servers & accounts',
+    'servers_hint':
+        'Private topics of a server use the account signed in on that server.',
     'not_signed_in': 'Not signed in',
     'signed_in_as': 'Signed in as :name',
     'unsubscribe': 'Unsubscribe',
@@ -178,6 +180,7 @@ class S {
     'server_actions': 'Serveur',
     'settings': 'Paramètres',
     'servers': 'Serveurs et comptes',
+    'servers_hint': 'Les topics privés d’un serveur utilisent le compte connecté sur ce serveur.',
     'not_signed_in': 'Non connecté',
     'signed_in_as': 'Connecté en tant que :name',
     'unsubscribe': 'Se désabonner',

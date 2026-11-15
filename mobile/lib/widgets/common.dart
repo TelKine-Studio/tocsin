@@ -283,46 +283,118 @@ class LiveIndicator extends StatelessWidget {
 }
 
 /// iOS style grouped section.
+/// Grouped section in the iOS style: a grey title, rows on a rounded
+/// card without border, and an optional explanation below.
 class SettingsSection extends StatelessWidget {
   const SettingsSection({
     super.key,
     required this.title,
     required this.children,
+    this.footer,
   });
 
   final String title;
   final List<Widget> children;
+  final String? footer;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final muted = theme.colorScheme.onSurfaceVariant;
+    final dark = theme.brightness == Brightness.dark;
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.only(left: 4, bottom: 8),
+            padding: const EdgeInsets.only(left: 18, bottom: 8),
             child: Text(
-              title.toUpperCase(),
-              style: theme.textTheme.labelSmall?.copyWith(
-                letterSpacing: 0.8,
-                color: theme.colorScheme.onSurfaceVariant,
+              title,
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: muted,
               ),
             ),
           ),
-          Card(
+          Container(
             clipBehavior: Clip.antiAlias,
-            child: Column(
-              children: [
-                for (var i = 0; i < children.length; i++) ...[
-                  if (i > 0) const Divider(indent: 56),
-                  children[i],
+            decoration: BoxDecoration(
+              color: dark ? const Color(0xFF1C1C1F) : Colors.white,
+              borderRadius: BorderRadius.circular(26),
+            ),
+            child: Material(
+              type: MaterialType.transparency,
+              child: Column(
+                children: [
+                  for (var i = 0; i < children.length; i++) ...[
+                    if (i > 0)
+                      Divider(
+                        height: 1,
+                        thickness: 0.6,
+                        indent: 56,
+                        endIndent: 18,
+                        color: dark
+                            ? const Color(0xFF2C2C30)
+                            : const Color(0xFFE5E5EA),
+                      ),
+                    children[i],
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
+          if (footer != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 8, 18, 0),
+              child: Text(
+                footer!,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontSize: 13,
+                  height: 1.35,
+                  color: muted,
+                ),
+              ),
+            ),
         ],
+      ),
+    );
+  }
+}
+
+/// iOS-style large title: big and bold at the top of the page, reduced
+/// into the bar when scrolling.
+class LargeTitleBar extends StatelessWidget {
+  const LargeTitleBar({super.key, required this.title, this.actions});
+
+  final String title;
+  final List<Widget>? actions;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    // SliverAppBar.large uses headlineMedium expanded, titleLarge collapsed.
+    return Theme(
+      data: theme.copyWith(
+        textTheme: theme.textTheme.copyWith(
+          headlineMedium: theme.textTheme.headlineMedium?.copyWith(
+            fontSize: 34,
+            height: 1.1,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.6,
+          ),
+          titleLarge: theme.textTheme.titleLarge?.copyWith(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+      child: SliverAppBar.large(
+        expandedHeight: 128,
+        title: Text(title),
+        actions: actions,
       ),
     );
   }
