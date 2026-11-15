@@ -91,6 +91,7 @@ None are required. They exist for advanced setups only:
 | `DB_CONNECTION` | `sqlite` | `pgsql` (tested in CI) or `mysql` to use an external database (then set `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`). SQLite is enough for a team; use PostgreSQL for a busy instance such as a public relay. |
 | `TOCSIN_WS_HOST` / `TOCSIN_WS_PORT` / `TOCSIN_WS_SCHEME` | derived from the public URL | Public WebSocket address given to clients, if the realtime server is exposed elsewhere. |
 | `TOCSIN_RELAY_URL` | `https://push.telkine.net` | Default relay proposed in the interface (it can also be changed there). |
+| `TOCSIN_HOSTED` | `false` | Public service mode: open sign-up with email confirmation, daily message quota per account, paid plans. See [hosted.md](hosted.md). |
 | `TOCSIN_RELAY_OPERATOR` | `false` | Only for an instance that sells the push relay to others (Telkine): shows the relay settings, plans, payments and client instances, and exposes the relay API. |
 | `LOG_LEVEL` | `warning` | `debug`, `info`, `warning`, `error`. |
 

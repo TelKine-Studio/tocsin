@@ -49,13 +49,13 @@ class SetupController extends Controller
                 'app.locale' => $data['locale'],
             ]);
 
-            return User::create([
+            return tap(User::create([
                 'name' => $data['name'],
                 'email' => $data['email'],
                 'password' => $data['password'],
                 'role' => Role::Admin,
                 'locale' => $data['locale'],
-            ]);
+            ]), fn (User $user) => $user->forceFill(['email_verified_at' => now()])->save());
         });
 
         $settings->ensureRealtimeCredentials();

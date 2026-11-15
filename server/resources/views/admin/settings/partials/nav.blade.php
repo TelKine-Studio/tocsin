@@ -8,8 +8,10 @@
         'relay' => ['icon' => 'layers', 'label' => __('Relay'), 'text' => __('Serve other instances')],
     ];
     // Selling the relay is reserved to the instance operated by Telkine.
-    if (! config('tocsin.relay_operator')) {
+    if (! config('tocsin.relay_operator') && ! config('tocsin.hosted')) {
         unset($tabs['relay']);
+    } elseif (! config('tocsin.relay_operator')) {
+        $tabs['relay'] = ['icon' => 'sparkles', 'label' => __('Plans'), 'text' => __('Accounts and payments')];
     }
 @endphp
 <x-ui.page-header :title="__('Settings')" :description="__('Everything is configured here: no configuration file to edit, no restart needed.')" />

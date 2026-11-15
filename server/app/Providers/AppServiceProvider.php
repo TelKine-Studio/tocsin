@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Models\Invitation;
 use App\Models\Topic;
 use App\Models\User;
+use App\Support\AccountQuota;
 use App\Support\Settings;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -48,6 +49,10 @@ class AppServiceProvider extends ServiceProvider
                     'invitations' => $user?->isAdmin() ? Invitation::query()->pending()->count() : 0,
                     'push' => $this->app->make(Settings::class)->pushConfigured(),
                     'relay' => $user?->isAdmin() && $this->app->make(Settings::class)->relayServerActive(),
+                    // Hosted mode: today's usage of the account (not for admins).
+                    'quota' => AccountQuota::enabled() && $user && ! $user->isAdmin()
+                        ? ['used' => $user->messagesToday(), 'limit' => $user->effectiveDailyLimit()]
+                        : null,
                 ];
             }));
         });

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Ntfy;
 
 use App\Actions\PublishMessage;
 use App\Enums\TopicVisibility;
+use App\Exceptions\QuotaExceededException;
 use App\Http\Controllers\Controller;
 use App\Models\Message;
 use App\Models\Topic;
@@ -11,6 +12,7 @@ use App\Support\Settings;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -169,6 +171,11 @@ class NtfyController extends Controller
             $message = $this->publisher->handle($topic, $input, $request->user());
         } catch (ValidationException $e) {
             return $this->error(400, 40000, 'invalid request: '.collect($e->errors())->flatten()->first());
+        } catch (QuotaExceededException $e) {
+            // Same code as ntfy's "daily message quota reached".
+            return $e->reason === 'quota'
+                ? $this->error(429, 42908, 'limit reached: daily message quota, upgrade at '.$e->upgradeUrl())
+                : $this->error(403, 40301, 'forbidden: '.$e->getMessage());
         }
 
         return response()->json($this->format($message->setRelation('topic', $topic)), 200, [], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
@@ -189,8 +196,16 @@ class NtfyController extends Controller
 
         $topic = Topic::query()->where('name', $name)->first();
 
-        if (! $topic && $forWriting && $user && $this->settings->boolean('topics.auto_create')
-            && ($user->isAdmin() || $this->settings->boolean('topics.users_can_create'))) {
+        $canCreate = ! $topic && $forWriting && $user && $this->settings->boolean('topics.auto_create')
+            ? Gate::forUser($user)->inspect('create', Topic::class)
+            : null;
+
+        // Hosted mode: tell why the topic cannot be created (plan limit).
+        if ($canCreate?->denied() && $canCreate->message()) {
+            abort($this->error(403, 40301, 'forbidden: '.$canCreate->message()));
+        }
+
+        if ($canCreate?->allowed()) {
             $topic = Topic::create([
                 'name' => $name,
                 'visibility' => TopicVisibility::Private,

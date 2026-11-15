@@ -32,6 +32,7 @@ curl -u :$TOCSIN_TOKEN -H "X-Title: Backup" -d "Nightly backup completed" https:
 
 **Notifications**
 - **Real push notifications** on iPhone (APNs) and Android (Firebase), even when the app is closed, plus **browser notifications** (Web Push) from the web interface.
+- **Or use it without a server** — on a hosted instance such as `push.telkine.net`, sign up and publish right away: free daily quota, Pro and Business plans paid by mobile money or card. See [docs/hosted.md](docs/hosted.md).
 - **Free and unlimited when self-hosted** — every feature is in this repository, with no paid edition. The only paid service is the optional Telkine relay below, for those who do not want to manage Apple and Firebase keys.
 - **Telkine push relay** — connect in one click, free up to 1,000 notifications a day per instance (4× ntfy's free tier); Pro and Business plans paid by mobile money or card. Or use **your own keys** for unlimited delivery.
 - **Confidential mode** — notifications only carry an identifier; the phone downloads the content from your server. Apple, Google and the relay never see it.

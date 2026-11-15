@@ -2,6 +2,17 @@
     @include('admin.settings.partials.nav')
     <x-settings.layout :section="$section">
         <x-ui.card :title="__('Push relay')" :description="__('Let other Tocsin instances deliver notifications to the app published with this server’s Apple Push key. This is how Telkine serves self-hosted instances.')" icon="layers">
+            @if ($hostedStats)
+                <div class="mb-6 grid grid-cols-3 divide-x divide-zinc-100 rounded-xl border border-zinc-100 dark:divide-zinc-800 dark:border-zinc-800">
+                    @foreach ([[__('Accounts'), $hostedStats['accounts']], [__('Paid accounts'), $hostedStats['paid']], [__('Messages today'), $hostedStats['messages_today']]] as [$label, $value])
+                        <div class="px-4 py-3">
+                            <p class="text-xs text-zinc-500">{{ $label }}</p>
+                            <p class="mt-0.5 text-lg font-semibold text-zinc-900 tabular-nums dark:text-white">{{ number_format($value, 0, ',', ' ') }}</p>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+
             @unless ($settings->apnsConfigured())
                 <div class="mb-6 flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200">
                     <x-ui.icon name="alert" class="mt-0.5 size-4 shrink-0" />
@@ -23,16 +34,22 @@
             <form method="POST" action="{{ route('admin.settings.relay-server') }}" id="relay-form" class="space-y-6">
                 @csrf
                 @method('PUT')
-                <x-ui.toggle name="enabled" :checked="$settings->boolean('relay_server.enabled')" :label="__('Act as a push relay')"
-                    :description="__('Exposes the relay API (/api/relay/v1) to other instances.')" />
-                <div class="border-t border-zinc-100 dark:border-zinc-800"></div>
-                <x-ui.toggle name="registration" :checked="$settings->boolean('relay_server.registration')" :label="__('Self-service registration')"
-                    :description="__('Instances can connect in one click on the free plan. When disabled, you create keys yourself.')" />
-                <div class="grid gap-5 border-t border-zinc-100 pt-6 sm:grid-cols-2 dark:border-zinc-800">
-                    <x-ui.input name="free_daily_limit" type="number" min="0" :label="__('Free plan: notifications per day')" :value="$settings->integer('relay_server.free_daily_limit')"
-                        :hint="__('Per instance. Paid plans get a custom limit on each instance.')" />
+                @if (config('tocsin.relay_operator'))
+                    <x-ui.toggle name="enabled" :checked="$settings->boolean('relay_server.enabled')" :label="__('Act as a push relay')"
+                        :description="__('Exposes the relay API (/api/relay/v1) to other instances.')" />
+                    <div class="border-t border-zinc-100 dark:border-zinc-800"></div>
+                    <x-ui.toggle name="registration" :checked="$settings->boolean('relay_server.registration')" :label="__('Self-service registration')"
+                        :description="__('Instances can connect in one click on the free plan. When disabled, you create keys yourself.')" />
+                @endif
+                <div @class(['grid gap-5 sm:grid-cols-2', 'border-t border-zinc-100 pt-6 dark:border-zinc-800' => config('tocsin.relay_operator')])>
+                    <x-ui.input name="free_daily_limit" type="number" min="0" :label="__('Free plan: per day')" :value="$settings->integer('relay_server.free_daily_limit')"
+                        :hint="config('tocsin.hosted') ? __('Notifications per relay instance, messages per hosted account. The daily limits of Pro and Business below work the same way.') : __('Per instance. Paid plans get a custom limit on each instance.')" />
                     <x-ui.input name="burst_per_minute" type="number" min="1" :label="__('Burst limit per minute')" :value="$settings->integer('relay_server.burst_per_minute')"
                         :hint="__('Protects Apple Push from floods, whatever the plan.')" />
+                    @if (config('tocsin.hosted'))
+                        <x-ui.input name="hosted_free_max_topics" type="number" min="0" :label="__('Free plan: topics per account')" :value="$settings->integer('hosted.free_max_topics')"
+                            :hint="__('0 = unlimited. Paid accounts have no topic limit.')" />
+                    @endif
                 </div>
 
                 <div class="border-t border-zinc-100 pt-6 dark:border-zinc-800">

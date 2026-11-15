@@ -64,6 +64,8 @@ class Settings
 
         // This instance acting as a relay for other instances.
         'relay_server.enabled' => false,
+        // Hosted mode: topics a free account can own (0 = unlimited).
+        'hosted.free_max_topics' => 10,
         'relay_server.registration' => true,
         'relay_server.free_daily_limit' => 1000,
         'relay_server.burst_per_minute' => 600,

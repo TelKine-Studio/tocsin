@@ -100,6 +100,7 @@ class SsoController extends Controller
                 'role' => Role::User,
                 'is_active' => true,
             ]);
+            $user->forceFill(['email_verified_at' => now()])->save();
             Audit::log('user.activated', $user, ['sso' => true], $user);
         }
 

@@ -3,7 +3,10 @@
 namespace App\Support;
 
 /**
- * Paid plans of the push relay, priced from Settings → Relay.
+ * Free, Pro and Business plans, priced in Settings → Plans. The same grid
+ * applies to relay instances and, in hosted mode, to accounts: the daily
+ * limit counts notifications for an instance, published messages for an
+ * account.
  */
 class RelayPlans
 {
@@ -38,6 +41,24 @@ class RelayPlans
             'pro', 'business' => $this->settings->integer("relay_server.{$plan}_daily_limit"),
             default => $this->settings->integer('relay_server.free_daily_limit'),
         };
+    }
+
+    /** Topics an account of this plan can own; null = unlimited. */
+    public function maxTopics(string $plan): ?int
+    {
+        if (in_array($plan, self::PAID, true)) {
+            return null;
+        }
+
+        $max = $this->settings->integer('hosted.free_max_topics');
+
+        return $max > 0 ? $max : null;
+    }
+
+    /** Whether paid plans can be bought here (prices and a provider set). */
+    public function sellable(): bool
+    {
+        return $this->paid() !== [] && $this->providers() !== [];
     }
 
     /** @return list<string> Payment providers configured on this relay. */

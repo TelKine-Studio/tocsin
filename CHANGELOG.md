@@ -10,6 +10,7 @@ First public release, published by [Telkine](https://github.com/TelKine-Studio).
 - Topics (public / private), members with read or read & publish access, realtime history over WebSocket (Laravel Reverb).
 - Publishing API and **ntfy-compatible API** (headers, JSON, polling, attachments, delays, `?auth=`).
 - Rich messages: priorities, tags, links, action buttons, image and file attachments, scheduled delivery, delivery tracking.
+- Hosted mode (`TOCSIN_HOSTED`): sign-up with email confirmation, daily message quota per account, Pro and Business plans paid by CinetPay or Stripe, "My plan" page, plans managed by administrators.
 - Topic logos, shown in the apps and in notifications (`X-Icon` per message still supported).
 - Alerting: grouping of repeated messages (`X-Collapse`, automatic for identical messages), acknowledgement button, escalation with reminders and emails, automatic acknowledgement of resolved alerts.
 - **Push notifications**: Apple (APNs), Android (FCM), browsers (Web Push); confidential mode.

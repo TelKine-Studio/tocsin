@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\Role;
+use App\Support\RelayPlans;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -13,7 +14,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-#[Fillable(['name', 'email', 'password', 'role', 'is_active', 'locale'])]
+#[Fillable(['name', 'email', 'password', 'role', 'is_active', 'locale', 'plan', 'daily_limit', 'plan_expires_at'])]
 #[Hidden(['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes'])]
 class User extends Authenticatable
 {
@@ -31,6 +32,8 @@ class User extends Authenticatable
             'two_factor_secret' => 'encrypted',
             'two_factor_recovery_codes' => 'encrypted:array',
             'two_factor_confirmed_at' => 'datetime',
+            'daily_limit' => 'integer',
+            'plan_expires_at' => 'datetime',
         ];
     }
 
@@ -56,6 +59,40 @@ class User extends Authenticatable
         return $this->belongsToMany(Topic::class)
             ->withPivot(['can_read', 'can_write'])
             ->withTimestamps();
+    }
+
+    /** @return HasMany<RelayPayment, $this> */
+    public function payments(): HasMany
+    {
+        return $this->hasMany(RelayPayment::class);
+    }
+
+    /** @return HasMany<AccountUsage, $this> */
+    public function usages(): HasMany
+    {
+        return $this->hasMany(AccountUsage::class);
+    }
+
+    /** Messages this account may publish per day (hosted mode). */
+    public function effectiveDailyLimit(): int
+    {
+        return $this->daily_limit ?? app(RelayPlans::class)->dailyLimit($this->plan ?? 'free');
+    }
+
+    public function messagesToday(): int
+    {
+        return (int) $this->usages()->where('date', now()->toDateString())->value('messages');
+    }
+
+    /** Topics this account may own; null = unlimited. */
+    public function maxTopics(): ?int
+    {
+        return app(RelayPlans::class)->maxTopics($this->plan ?? 'free');
+    }
+
+    public function isOnPaidPlan(): bool
+    {
+        return in_array($this->plan, RelayPlans::PAID, true);
     }
 
     /** @return HasMany<Device, $this> */

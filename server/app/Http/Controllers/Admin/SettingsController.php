@@ -2,16 +2,21 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\Role;
 use App\Http\Controllers\Controller;
 use App\Http\Middleware\SetLocale;
+use App\Models\AccountUsage;
 use App\Models\Device;
 use App\Models\RelayClient;
 use App\Models\RelayUsage;
+use App\Models\User;
 use App\Push\ApnsClient;
 use App\Push\ApnsException;
 use App\Push\Gateways\RelayGateway;
 use App\Push\PushManager;
+use App\Support\AccountQuota;
 use App\Support\Audit;
+use App\Support\RelayPlans;
 use App\Support\Settings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -27,7 +32,7 @@ class SettingsController extends Controller
     public function edit(Request $request, Settings $settings, string $section = 'general'): View
     {
         abort_unless(in_array($section, self::SECTIONS, true), 404);
-        abort_if($section === 'relay' && ! config('tocsin.relay_operator'), 404);
+        abort_if($section === 'relay' && ! config('tocsin.relay_operator') && ! config('tocsin.hosted'), 404);
 
         return view('admin.settings.'.$section, [
             'settings' => $settings,
@@ -41,6 +46,11 @@ class SettingsController extends Controller
                 'clients' => RelayClient::query()->count(),
                 'active_today' => RelayUsage::query()->where('date', now()->toDateString())->count(),
                 'sent_today' => (int) RelayUsage::query()->where('date', now()->toDateString())->sum('sent'),
+            ] : null,
+            'hostedStats' => $section === 'relay' && AccountQuota::enabled() ? [
+                'accounts' => User::query()->where('role', Role::User)->count(),
+                'paid' => User::query()->where('role', Role::User)->whereIn('plan', RelayPlans::PAID)->count(),
+                'messages_today' => (int) AccountUsage::query()->where('date', now()->toDateString())->sum('messages'),
             ] : null,
         ]);
     }
@@ -310,6 +320,7 @@ class SettingsController extends Controller
             'pro_daily_limit' => ['required', 'integer', 'min:1'],
             'business_price' => ['nullable', 'integer', 'min:0'],
             'business_daily_limit' => ['required', 'integer', 'min:1'],
+            'hosted_free_max_topics' => ['nullable', 'integer', 'min:0', 'max:100000'],
             'cinetpay_site_id' => ['nullable', 'string', 'max:50'],
             'cinetpay_api_key' => ['nullable', 'string', 'max:200'],
             'stripe_secret' => ['nullable', 'string', 'max:200'],
@@ -317,8 +328,12 @@ class SettingsController extends Controller
         ]);
 
         $settings->set([
-            'relay_server.enabled' => $request->boolean('enabled'),
-            'relay_server.registration' => $request->boolean('registration'),
+            // The relay switches only exist in relay operator mode.
+            ...(config('tocsin.relay_operator') ? [
+                'relay_server.enabled' => $request->boolean('enabled'),
+                'relay_server.registration' => $request->boolean('registration'),
+            ] : []),
+            ...(AccountQuota::enabled() ? ['hosted.free_max_topics' => (int) ($data['hosted_free_max_topics'] ?? 0)] : []),
             'relay_server.free_daily_limit' => (int) $data['free_daily_limit'],
             'relay_server.burst_per_minute' => (int) $data['burst_per_minute'],
             'relay_server.currency' => strtoupper($data['currency']),

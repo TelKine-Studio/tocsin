@@ -25,7 +25,7 @@ class CinetPay
             'transaction_id' => $payment->reference,
             'amount' => $payment->amount,
             'currency' => $payment->currency,
-            'description' => 'Tocsin relay '.ucfirst($payment->plan).' - '.$payment->client->name,
+            'description' => $payment->description(),
             'notify_url' => route('relay.payments.cinetpay'),
             'return_url' => $returnUrl,
             'channels' => 'ALL',

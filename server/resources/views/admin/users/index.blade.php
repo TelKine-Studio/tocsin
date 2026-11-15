@@ -81,6 +81,12 @@
                             <p class="truncate text-sm font-medium text-zinc-900 dark:text-white">{{ $user->name }} @if ($user->is(auth()->user()))<span class="text-xs font-normal text-zinc-400">({{ __('you') }})</span>@endif</p>
                             <p class="truncate text-xs text-zinc-500">{{ $user->email }}</p>
                         </div>
+                        @if (\App\Support\AccountQuota::enabled() && ! $user->isAdmin())
+                            <span class="hidden w-40 text-xs text-zinc-500 md:block" title="{{ __('Messages today') }}">
+                                <x-ui.badge :color="$user->isOnPaidPlan() ? 'violet' : 'zinc'">{{ ucfirst($user->plan ?? 'free') }}</x-ui.badge>
+                                <span class="ml-1 tabular-nums">{{ number_format((int) $user->messages_today, 0, ',', ' ') }} / {{ number_format($user->effectiveDailyLimit(), 0, ',', ' ') }}</span>
+                            </span>
+                        @endif
                         <span class="hidden w-28 text-xs text-zinc-500 md:block" title="{{ __('Devices') }}"><x-ui.icon name="smartphone" class="mr-1 inline size-3.5" />{{ trans_choice(':count device|:count devices', $user->devices_count) }}</span>
                         <span class="hidden w-36 text-xs text-zinc-500 lg:block">{{ $user->last_login_at ? __('Seen :date', ['date' => $user->last_login_at->diffForHumans()]) : __('Never logged in') }}</span>
                         <x-ui.badge :color="$user->isAdmin() ? 'brand' : 'zinc'" class="hidden sm:inline-flex">{{ $user->role->label() }}</x-ui.badge>

@@ -33,6 +33,13 @@ return [
     */
     'relay_operator' => (bool) env('TOCSIN_RELAY_OPERATOR', false),
 
+    /*
+    | Hosted mode: anyone can sign up on this instance and publish without
+    | running a server, with a daily message quota per account and paid
+    | plans (the service operated by Telkine at push.telkine.net).
+    */
+    'hosted' => (bool) env('TOCSIN_HOSTED', false),
+
     'relay' => [
         'url' => env('TOCSIN_RELAY_URL', 'https://push.telkine.net'),
     ],

@@ -45,12 +45,13 @@ class AcceptInvitationController extends Controller
         $user = DB::transaction(function () use ($invitation, $data) {
             $invitation->forceFill(['accepted_at' => now()])->save();
 
-            return User::create([
+            // The invitation link proves the address.
+            return tap(User::create([
                 'name' => $data['name'],
                 'email' => $invitation->email,
                 'password' => $data['password'],
                 'role' => $invitation->role,
-            ]);
+            ]), fn (User $user) => $user->forceFill(['email_verified_at' => now()])->save());
         });
 
         Auth::login($user);

@@ -5,6 +5,9 @@
         ['route' => 'dashboard', 'match' => 'dashboard', 'icon' => 'home', 'label' => __('Dashboard')],
         ['route' => 'topics.index', 'match' => 'topics.*', 'icon' => 'hash', 'label' => __('Topics'), 'count' => $nav['topics']],
     ];
+    if ($nav['quota']) {
+        $items[] = ['route' => 'account.plan', 'match' => 'account.plan', 'icon' => 'sparkles', 'label' => __('My plan')];
+    }
     $admin = [
         ['route' => 'admin.users.index', 'match' => 'admin.users.*', 'icon' => 'users', 'label' => __('Users'), 'count' => $nav['invitations'] ?: null],
         ['route' => 'admin.audit', 'match' => 'admin.audit', 'icon' => 'shield', 'label' => __('Audit log')],
@@ -56,7 +59,18 @@
         <p class="px-2 text-[11px] text-zinc-400 dark:text-zinc-600">
             Tocsin {{ config('tocsin.version') }} · {{ __('a project by') }} <a href="{{ config('tocsin.publisher_url') }}" class="font-medium hover:text-zinc-600 dark:hover:text-zinc-400">{{ config('tocsin.publisher') }}</a>
         </p>
-        @if (! $nav['push'])
+        @if ($nav['quota'])
+            @php
+                ['used' => $used, 'limit' => $limit] = $nav['quota'];
+                $percent = $limit > 0 ? min(100, (int) round($used / $limit * 100)) : 0;
+            @endphp
+            <a href="{{ route('account.plan') }}" class="block rounded-2xl border border-zinc-200 bg-white p-3.5 transition hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900">
+                <p class="flex items-center justify-between text-xs text-zinc-500"><span>{{ __('Today') }}</span><span class="tabular-nums">{{ number_format($used, 0, ',', ' ') }} / {{ number_format($limit, 0, ',', ' ') }}</span></p>
+                <span class="mt-2 block h-1.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-white/10"><span @class(['block h-full rounded-full', 'bg-red-500' => $percent >= 100, 'bg-amber-500' => $percent >= 80 && $percent < 100, 'bg-brand-600' => $percent < 80]) style="width: {{ $percent }}%"></span></span>
+                @if ($percent >= 80)<p class="mt-2 text-xs font-medium text-brand-700 dark:text-brand-300">{{ __('Upgrade') }} →</p>@endif
+            </a>
+        @endif
+        @if (! $nav['push'] && ! $nav['quota'])
             <a href="{{ $user->isAdmin() ? route('admin.settings.edit', 'push') : '#' }}" class="block rounded-2xl border border-amber-200 bg-amber-50 p-3.5 transition hover:border-amber-300 dark:border-amber-500/20 dark:bg-amber-500/10">
                 <p class="flex items-center gap-2 text-sm font-semibold text-amber-900 dark:text-amber-200"><x-ui.icon name="apple" class="size-4" />{{ __('Push not configured') }}</p>
                 <p class="mt-1 text-xs leading-relaxed text-amber-800/80 dark:text-amber-200/70">

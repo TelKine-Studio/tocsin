@@ -34,7 +34,7 @@ class Stripe
                     'line_items[0][quantity]' => 1,
                     'line_items[0][price_data][currency]' => strtolower($payment->currency),
                     'line_items[0][price_data][unit_amount]' => $amount,
-                    'line_items[0][price_data][product_data][name]' => 'Tocsin relay '.ucfirst($payment->plan).' (30 days)',
+                    'line_items[0][price_data][product_data][name]' => $payment->description().' (30 days)',
                 ]);
         } catch (ConnectionException $e) {
             throw new PaymentException('Stripe cannot be reached: '.$e->getMessage(), previous: $e);

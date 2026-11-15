@@ -41,13 +41,16 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
 });
 
 // Push relay, enabled on the instance operated by Telkine (Settings → Relay).
+// Payment notifications (relay plans and hosted account plans).
+Route::prefix('relay/v1')->name('relay.')->middleware(EnsureRelayOperator::class.':billing')->group(function () {
+    Route::post('payments/cinetpay', [BillingController::class, 'cinetpay'])->name('payments.cinetpay');
+    Route::post('payments/stripe', [BillingController::class, 'stripe'])->name('payments.stripe');
+});
+
 Route::prefix('relay/v1')->name('relay.')->middleware(EnsureRelayOperator::class)->group(function () {
     Route::post('instances', [RelayController::class, 'register'])
         ->middleware('throttle:relay-register')
         ->name('register');
-
-    Route::post('payments/cinetpay', [BillingController::class, 'cinetpay'])->name('payments.cinetpay');
-    Route::post('payments/stripe', [BillingController::class, 'stripe'])->name('payments.stripe');
 
     Route::middleware(AuthenticateRelayClient::class)->group(function () {
         Route::get('usage', [RelayController::class, 'usage'])->name('usage');

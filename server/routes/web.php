@@ -1,12 +1,14 @@
 <?php
 
 use App\Http\Controllers\AccessTokenController;
+use App\Http\Controllers\AccountPlanController;
 use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\InvitationController;
 use App\Http\Controllers\Admin\RelayClientController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Auth\AcceptInvitationController;
+use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\RegisterController;
@@ -57,6 +59,14 @@ Route::middleware('auth')->group(function () {
 
     Route::get('dashboard', DashboardController::class)->name('dashboard');
 
+    Route::get('email/verify', [EmailVerificationController::class, 'notice'])->name('verification.notice');
+    Route::get('email/verify/{id}/{hash}', [EmailVerificationController::class, 'verify'])->middleware(['signed', 'throttle:6,1'])->name('verification.verify');
+    Route::post('email/verification-notification', [EmailVerificationController::class, 'send'])->middleware('throttle:6,1')->name('verification.send');
+
+    // Hosted mode: the plan of the signed-in account.
+    Route::get('account/plan', [AccountPlanController::class, 'show'])->name('account.plan');
+    Route::post('account/plan/checkout', [AccountPlanController::class, 'checkout'])->middleware('throttle:10,1')->name('account.plan.checkout');
+
     Route::resource('topics', TopicController::class);
     Route::post('topics/{topic}/messages', [TopicMessageController::class, 'store'])->name('topics.messages.store');
     Route::delete('topics/{topic}/messages', [TopicMessageController::class, 'clear'])->name('topics.messages.clear');
@@ -92,6 +102,7 @@ Route::middleware('auth')->group(function () {
         Route::get('audit', AuditLogController::class)->name('audit');
         Route::put('settings/security', [SettingsController::class, 'updateSecurity'])->name('settings.security');
         Route::resource('users', UserController::class)->only(['index', 'edit', 'update', 'destroy']);
+        Route::put('users/{user}/plan', [UserController::class, 'updatePlan'])->name('users.plan');
         Route::redirect('invitations', '/admin/users')->name('invitations.index');
         Route::post('invitations', [InvitationController::class, 'store'])->name('invitations.store');
         Route::post('invitations/{invitation}/resend', [InvitationController::class, 'resend'])->name('invitations.resend');
@@ -109,7 +120,7 @@ Route::middleware('auth')->group(function () {
         Route::put('settings/push/relay', [SettingsController::class, 'saveRelayKey'])->name('settings.relay.key');
         Route::delete('settings/push/relay', [SettingsController::class, 'disconnectRelay'])->name('settings.relay.disconnect');
         Route::post('settings/push/relay/checkout', [SettingsController::class, 'relayCheckout'])->name('settings.relay.checkout');
-        Route::put('settings/relay', [SettingsController::class, 'updateRelayServer'])->name('settings.relay-server')->middleware(EnsureRelayOperator::class);
+        Route::put('settings/relay', [SettingsController::class, 'updateRelayServer'])->name('settings.relay-server')->middleware(EnsureRelayOperator::class.':billing');
 
         Route::get('relay-clients', [RelayClientController::class, 'index'])->name('relay-clients.index')->middleware(EnsureRelayOperator::class);
         Route::put('relay-clients/{relayClient}', [RelayClientController::class, 'update'])->name('relay-clients.update')->middleware(EnsureRelayOperator::class);

@@ -12,7 +12,7 @@
                 'relay' => ['icon' => 'layers', 'label' => __('Relay'), 'text' => __('Serve other instances')],
             ] as $key => $tab)
                 {{-- Selling the relay is reserved to the instance operated by Telkine. --}}
-                @continue($key === 'relay' && ! config('tocsin.relay_operator'))
+                @continue($key === 'relay' && ! config('tocsin.relay_operator') && ! config('tocsin.hosted'))
                 <li>
                     <a href="{{ route('admin.settings.edit', $key) }}" @class(['flex items-start gap-3 rounded-xl p-3 transition', 'bg-white shadow-(--shadow-soft) ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800' => $section === $key, 'hover:bg-zinc-100 dark:hover:bg-white/5' => $section !== $key])>
                         <span @class(['inline-flex size-8 shrink-0 items-center justify-center rounded-lg', 'bg-brand-600 text-white' => $section === $key, 'bg-zinc-100 text-zinc-500 dark:bg-white/5 dark:text-zinc-400' => $section !== $key])><x-ui.icon :name="$tab['icon']" class="size-4" /></span>

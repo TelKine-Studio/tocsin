@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Enums\Role;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\AccountQuota;
 use App\Support\Settings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -39,9 +40,16 @@ class RegisterController extends Controller
 
         $user = User::create([...$data, 'role' => Role::User]);
 
+        // Hosted mode: the free plan is only usable with a real address.
+        if (AccountQuota::enabled()) {
+            $user->sendEmailVerificationNotification();
+        } else {
+            $user->forceFill(['email_verified_at' => now()])->save();
+        }
+
         Auth::login($user);
         $request->session()->regenerate();
 
-        return redirect()->route('dashboard');
+        return redirect()->route(AccountQuota::enabled() ? 'verification.notice' : 'dashboard');
     }
 }

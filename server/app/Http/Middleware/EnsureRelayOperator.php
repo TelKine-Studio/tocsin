@@ -12,9 +12,15 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class EnsureRelayOperator
 {
-    public function handle(Request $request, Closure $next): Response
+    /**
+     * With "billing", hosted mode (TOCSIN_HOSTED) is enough too: payment
+     * notifications serve relay instances and hosted accounts alike.
+     */
+    public function handle(Request $request, Closure $next, ?string $scope = null): Response
     {
-        abort_unless(config('tocsin.relay_operator'), 404);
+        $allowed = config('tocsin.relay_operator') || ($scope === 'billing' && config('tocsin.hosted'));
+
+        abort_unless($allowed, 404);
 
         return $next($request);
     }

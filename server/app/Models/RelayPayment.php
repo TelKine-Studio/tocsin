@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
-#[Fillable(['relay_client_id', 'reference', 'plan', 'amount', 'currency', 'provider', 'provider_reference', 'status', 'period_days'])]
+#[Fillable(['relay_client_id', 'user_id', 'reference', 'plan', 'amount', 'currency', 'provider', 'provider_reference', 'status', 'period_days'])]
 class RelayPayment extends Model
 {
     protected function casts(): array
@@ -28,8 +28,29 @@ class RelayPayment extends Model
         return $this->belongsTo(RelayClient::class, 'relay_client_id');
     }
 
+    /** @return BelongsTo<User, $this> */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    /** Relay instance or account that pays. */
+    public function payer(): RelayClient|User|null
+    {
+        return $this->user_id ? $this->user : $this->client;
+    }
+
+    /** Name shown on the payment page of the provider. */
+    public function description(): string
+    {
+        return $this->user_id
+            ? 'Tocsin '.ucfirst($this->plan).' - '.$this->user?->email
+            : 'Tocsin relay '.ucfirst($this->plan).' - '.$this->client?->name;
+    }
+
     /**
-     * Marks the payment as paid (once) and extends the client's plan.
+     * Marks the payment as paid (once) and extends the plan of the relay
+     * instance or of the account.
      */
     public function markPaid(?string $providerReference = null): void
     {
@@ -42,13 +63,13 @@ class RelayPayment extends Model
 
             $payment->forceFill(['status' => 'paid', 'paid_at' => now(), 'provider_reference' => $providerReference ?? $payment->provider_reference])->save();
 
-            $client = $payment->client;
-            $plans = app(RelayPlans::class);
-            $start = $client->plan === $payment->plan && $client->plan_expires_at?->isFuture() ? $client->plan_expires_at : now();
+            $payer = $payment->payer();
+            $start = $payer->plan === $payment->plan && $payer->plan_expires_at?->isFuture() ? $payer->plan_expires_at : now();
 
-            $client->forceFill([
+            $payer->forceFill([
                 'plan' => $payment->plan,
-                'daily_limit' => $plans->dailyLimit($payment->plan),
+                // Accounts follow the plan's limit; instances keep their own copy.
+                'daily_limit' => $payer instanceof User ? null : app(RelayPlans::class)->dailyLimit($payment->plan),
                 'plan_expires_at' => $start->copy()->addDays($payment->period_days),
             ])->save();
         });

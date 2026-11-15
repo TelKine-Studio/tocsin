@@ -10,6 +10,14 @@
         <x-ui.button variant="secondary" :href="route('topics.index')" icon="hash">{{ __('All topics') }}</x-ui.button>
     </x-ui.page-header>
 
+    @if (\App\Support\AccountQuota::enabled() && ! auth()->user()->isAdmin() && ! auth()->user()->hasVerifiedEmail())
+        <div class="mb-6 flex flex-wrap items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200">
+            <x-ui.icon name="mail" class="size-4 shrink-0" />
+            <span class="flex-1">{{ __('Confirm your email address to start publishing: we sent you a link.') }}</span>
+            <form method="POST" action="{{ route('verification.send') }}">@csrf<x-ui.button size="sm" variant="secondary">{{ __('Send the link again') }}</x-ui.button></form>
+        </div>
+    @endif
+
     @if ($done < $onboarding->count())
         <section class="card relative mb-8 overflow-hidden">
             <div class="pointer-events-none absolute -top-24 -right-24 size-72 rounded-full bg-brand-500/10 blur-3xl"></div>

@@ -9,6 +9,7 @@ use App\Jobs\SendMessagePush;
 use App\Models\Message;
 use App\Models\Topic;
 use App\Models\User;
+use App\Support\AccountQuota;
 use App\Support\Ntfy\ActionParser;
 use App\Support\Ntfy\DelayParser;
 use App\Support\Settings;
@@ -28,7 +29,7 @@ class PublishMessage
     /** Longest accepted X-Collapse key. */
     public const MAX_COLLAPSE_LENGTH = 150;
 
-    public function __construct(protected Settings $settings, protected AcknowledgeMessage $acknowledge) {}
+    public function __construct(protected Settings $settings, protected AcknowledgeMessage $acknowledge, protected AccountQuota $quota) {}
 
     /**
      * Validate, store and deliver (or schedule) a message.
@@ -72,6 +73,9 @@ class PublishMessage
             return $this->group($existing->setRelation('topic', $topic), $data, $normalized, $requiresAck);
         }
 
+        // Hosted mode: grouped repeats above are free, new messages count.
+        $this->quota->ensureCanPublish($topic);
+
         $message = $topic->messages()->create([
             'user_id' => $author?->id,
             'title' => $data['title'] ?? null,
@@ -87,6 +91,8 @@ class PublishMessage
             'collapse_key' => $collapseKey,
             'requires_ack' => $requiresAck,
         ]);
+
+        $this->quota->record($topic);
 
         if ($hasFile) {
             $this->storeAttachment($message, $input['file'], $data['filename'] ?? null);
