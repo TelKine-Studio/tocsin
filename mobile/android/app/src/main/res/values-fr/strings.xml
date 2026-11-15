@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="channel_high">Priorité haute</string>
+    <string name="channel_default">Messages</string>
+    <string name="channel_low">Priorité basse</string>
+</resources>

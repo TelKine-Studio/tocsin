@@ -1,0 +1,5 @@
+{
+  "_comment": "Replace this file with the google-services.json of your Firebase project (Project settings → Your apps → Android, package ci.telkine.tocsin) and rename it google-services.json.",
+  "project_info": { "project_id": "your-project", "project_number": "000000000000", "storage_bucket": "your-project.appspot.com" },
+  "client": []
+}

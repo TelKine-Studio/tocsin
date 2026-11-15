@@ -1,0 +1,28 @@
+# Tocsin — self-hosted push notifications
+#
+# Coolify: create a "Docker Compose" resource pointing to this repository,
+# then assign a domain to the "tocsin" service (port 80). Nothing else is
+# required: open the domain in your browser to create the first admin.
+#
+# Plain Docker: `docker compose up -d`, then open http://localhost:8000
+# (uncomment the "ports" section below).
+
+services:
+  tocsin:
+    build:
+      context: ./server
+    image: ghcr.io/telkine-studio/tocsin:latest
+    restart: unless-stopped
+    volumes:
+      - tocsin-data:/data
+    # ports:
+    #   - "8000:80"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1/up"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  tocsin-data:

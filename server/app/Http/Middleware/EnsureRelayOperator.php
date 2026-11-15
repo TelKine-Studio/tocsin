@@ -1,0 +1,21 @@
+<?php
+
+namespace App\Http\Middleware;
+
+use Closure;
+use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
+
+/**
+ * Relay operator screens and API only exist when TOCSIN_RELAY_OPERATOR is
+ * set (the instance operated by Telkine): elsewhere they answer 404.
+ */
+class EnsureRelayOperator
+{
+    public function handle(Request $request, Closure $next): Response
+    {
+        abort_unless(config('tocsin.relay_operator'), 404);
+
+        return $next($request);
+    }
+}

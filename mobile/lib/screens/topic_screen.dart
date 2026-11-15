@@ -1,0 +1,833 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../l10n/strings.dart';
+import '../models/models.dart';
+import '../services/action_runner.dart';
+import '../services/api_client.dart';
+import '../state/app_state.dart';
+import '../widgets/common.dart';
+
+class TopicScreen extends StatefulWidget {
+  const TopicScreen({super.key, required this.subscriptionId});
+
+  final String subscriptionId;
+
+  @override
+  State<TopicScreen> createState() => _TopicScreenState();
+}
+
+class _TopicScreenState extends State<TopicScreen> {
+  late final AppState _state;
+
+  @override
+  void initState() {
+    super.initState();
+    _state = context.read<AppState>();
+    _state.openSubscriptionId = widget.subscriptionId;
+    _state.loadMessages(widget.subscriptionId);
+    _state.markRead(widget.subscriptionId);
+  }
+
+  @override
+  void dispose() {
+    if (_state.openSubscriptionId == widget.subscriptionId) {
+      _state.openSubscriptionId = null;
+    }
+    super.dispose();
+  }
+
+  Future<void> _refresh() async {
+    try {
+      await _state.refresh(widget.subscriptionId);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            S.of(context).t('refresh_failed', {'error': e.message}),
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _confirmUnsubscribe(Subscription subscription) async {
+    final s = S.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(s.t('unsubscribe')),
+        content: Text(
+          s.t('unsubscribe_confirm', {'topic': subscription.displayName}),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(s.t('cancel')),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              minimumSize: const Size(0, 44),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(s.t('unsubscribe')),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      Navigator.of(context).pop();
+      await _state.unsubscribe(subscription.id);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S.of(context);
+    final theme = Theme.of(context);
+    final state = context.watch<AppState>();
+    final subscription = state.subscription(widget.subscriptionId);
+
+    if (subscription == null) return const Scaffold(body: SizedBox.shrink());
+
+    final messages = state.messages(subscription.id);
+    final server = state.serverFor(subscription.serverUrl);
+    final pending = messages.where((m) => m.awaitsAck).length;
+    final locale = Localizations.localeOf(context).toString();
+
+    return Scaffold(
+      body: RefreshIndicator(
+        onRefresh: _refresh,
+        edgeOffset: kToolbarHeight + MediaQuery.paddingOf(context).top,
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverAppBar(
+              pinned: true,
+              titleSpacing: 0,
+              title: _Header(subscription: subscription, host: server?.host),
+              actions: [
+                if (subscription.muted)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 2),
+                    child: Icon(
+                      Icons.notifications_off_outlined,
+                      size: 20,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                _menu(context, subscription),
+              ],
+            ),
+            if (pending > 0)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 4),
+                  child: _PendingSummary(count: pending),
+                ),
+              ),
+            if (messages.isEmpty)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: EmptyState(
+                  icon: Icons.inbox_outlined,
+                  title: s.t('no_messages'),
+                  message: s.t('no_messages_hint'),
+                ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(8, 0, 8, 40),
+                sliver: SliverList.builder(
+                  itemCount: messages.length,
+                  itemBuilder: (context, index) {
+                    final message = messages[index];
+                    final previous = index > 0 ? messages[index - 1] : null;
+                    final newDay =
+                        previous == null ||
+                        !DateUtils.isSameDay(previous.time, message.time);
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (newDay)
+                          _DayHeader(label: _dayLabel(s, locale, message.time))
+                        else
+                          Divider(
+                            height: 1,
+                            thickness: 0.6,
+                            indent: 58,
+                            endIndent: 12,
+                            color: theme.brightness == Brightness.dark
+                                ? const Color(0xFF27272A)
+                                : const Color(0xFFE7E5E4),
+                          ),
+                        _MessageCard(
+                          message: message,
+                          subscriptionId: widget.subscriptionId,
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _dayLabel(S s, String locale, DateTime time) {
+    final today = DateUtils.dateOnly(DateTime.now());
+    final day = DateUtils.dateOnly(time);
+    final diff = today.difference(day).inDays;
+    if (diff == 0) return s.t('today');
+    if (diff == 1) return s.t('yesterday');
+    final format = day.year == today.year
+        ? DateFormat.MMMMEEEEd(locale)
+        : DateFormat.yMMMMd(locale);
+    final label = format.format(day);
+    return label[0].toUpperCase() + label.substring(1);
+  }
+
+  Widget _menu(BuildContext context, Subscription subscription) {
+    final s = S.of(context);
+    final theme = Theme.of(context);
+    final state = context.read<AppState>();
+
+    return PopupMenuButton<String>(
+      icon: const Icon(Icons.more_horiz_rounded),
+      onSelected: (value) => switch (value) {
+        'mute' => state.toggleMute(subscription.id),
+        _ => _confirmUnsubscribe(subscription),
+      },
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          value: 'mute',
+          child: ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(
+              subscription.muted
+                  ? Icons.notifications_active_outlined
+                  : Icons.notifications_off_outlined,
+            ),
+            title: Text(subscription.muted ? s.t('unmute') : s.t('mute')),
+          ),
+        ),
+        PopupMenuItem(
+          value: 'unsubscribe',
+          child: ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.delete_outline, color: theme.colorScheme.error),
+            title: Text(
+              s.t('unsubscribe'),
+              style: TextStyle(color: theme.colorScheme.error),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Topic name, with "#topic · server" and the realtime state below.
+class _Header extends StatelessWidget {
+  const _Header({required this.subscription, required this.host});
+
+  final Subscription subscription;
+  final String? host;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final state = context.read<AppState>();
+
+    return ValueListenableBuilder<Set<String>>(
+      valueListenable: state.realtime.connected,
+      builder: (context, connected, _) {
+        final live = connected.contains(subscription.serverUrl);
+        final details = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              subscription.displayName,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                fontSize: 17,
+              ),
+            ),
+            const SizedBox(height: 1),
+            Row(
+              children: [
+                Container(
+                  width: 7,
+                  height: 7,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: live
+                        ? const Color(0xFF10B981)
+                        : theme.colorScheme.outline,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    [
+                      '#${subscription.topic}',
+                      if (host != null && host!.isNotEmpty) host!,
+                    ].join(' · '),
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+
+        return Row(
+          children: [
+            TopicAvatar(
+              name: subscription.topic,
+              label: subscription.displayName,
+              isPublic: true,
+              iconUrl: subscription.iconUrl,
+              size: 36,
+            ),
+            const SizedBox(width: 10),
+            Expanded(child: details),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _PendingSummary extends StatelessWidget {
+  const _PendingSummary({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF59E0B).withValues(alpha: dark ? 0.16 : 0.12),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.notifications_active_rounded,
+            size: 18,
+            color: dark ? const Color(0xFFFBBF24) : const Color(0xFFB45309),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              count == 1
+                  ? S.of(context).t('pending_ack_one')
+                  : S.of(context).t('pending_acks', {'count': '$count'}),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: dark ? const Color(0xFFFDE68A) : const Color(0xFF92400E),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DayHeader extends StatelessWidget {
+  const _DayHeader({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 20, 12, 4),
+      child: Text(
+        label,
+        style: theme.textTheme.labelLarge?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+/// Colors and icon of a priority.
+({Color color, IconData icon}) _priorityStyle(
+  int priority,
+  ColorScheme scheme,
+) => switch (priority) {
+  >= 5 => (color: const Color(0xFFDC2626), icon: Icons.priority_high_rounded),
+  4 => (color: const Color(0xFFD97706), icon: Icons.keyboard_arrow_up_rounded),
+  <= 2 => (color: scheme.outline, icon: Icons.keyboard_arrow_down_rounded),
+  _ => (color: scheme.primary, icon: Icons.notifications_none_rounded),
+};
+
+class _MessageCard extends StatelessWidget {
+  const _MessageCard({required this.message, required this.subscriptionId});
+
+  final TopicMessage message;
+  final String subscriptionId;
+
+  Future<void> _runAction(BuildContext context, MessageAction action) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final s = S.of(context);
+    final error = await ActionRunner().run(action);
+    if (action.isHttp) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            error == null
+                ? s.t('action_done', {'label': action.label})
+                : s.t('action_failed', {'error': error}),
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _acknowledge(BuildContext context) async {
+    final ack =
+        message.actions.where((a) => a.ack).firstOrNull ??
+        (message.ack?.url == null
+            ? null
+            : MessageAction(
+                action: 'http',
+                label: 'ack',
+                url: message.ack!.url!,
+                ack: true,
+              ));
+    if (ack == null) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    final s = S.of(context);
+    final error = await context.read<AppState>().acknowledge(
+      subscriptionId,
+      ack,
+    );
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          error == null
+              ? s.t('ack_done')
+              : s.t('action_failed', {'error': error}),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S.of(context);
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final dark = theme.brightness == Brightness.dark;
+    final locale = Localizations.localeOf(context).toString();
+    final time = DateFormat.Hm(locale).format(message.time);
+    final priority = _priorityStyle(message.priority, scheme);
+    final attachment = message.attachment;
+    final hasTitle = message.title?.isNotEmpty == true;
+    final awaiting = message.awaitsAck;
+    final muted = scheme.onSurfaceVariant;
+
+    // No frame: only alerts waiting for an acknowledgement get a tint.
+    final card = Material(
+      color: awaiting
+          ? const Color(0xFFF59E0B).withValues(alpha: dark ? 0.12 : 0.09)
+          : Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: message.click == null
+            ? null
+            : () => launchUrl(
+                Uri.parse(message.click!),
+                mode: LaunchMode.externalApplication,
+              ),
+        onLongPress: () {
+          Clipboard.setData(ClipboardData(text: message.message));
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(s.t('copied'))));
+        },
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Semantics(
+                label: s.t('priority_${message.priority.clamp(1, 5)}'),
+                child: Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: priority.color.withValues(alpha: dark ? 0.2 : 0.1),
+                    borderRadius: BorderRadius.circular(11),
+                  ),
+                  child: Icon(priority.icon, size: 20, color: priority.color),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            hasTitle ? message.title! : message.message,
+                            maxLines: hasTitle ? 2 : 6,
+                            overflow: TextOverflow.ellipsis,
+                            style: hasTitle
+                                ? theme.textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 15,
+                                    height: 1.3,
+                                  )
+                                : theme.textTheme.bodyMedium?.copyWith(
+                                    fontSize: 15,
+                                    height: 1.4,
+                                  ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        if (message.occurrences > 1) ...[
+                          _Counter(count: message.occurrences),
+                          const SizedBox(width: 6),
+                        ],
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            time,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: muted,
+                              fontFeatures: const [
+                                FontFeature.tabularFigures(),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (hasTitle) ...[
+                      const SizedBox(height: 3),
+                      SelectableText(
+                        message.message,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          height: 1.4,
+                          color: scheme.onSurface.withValues(alpha: 0.78),
+                        ),
+                      ),
+                    ],
+                    if (message.tags.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        message.tags.map((t) => '#$t').join('  '),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: muted,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                    if (attachment != null) ...[
+                      const SizedBox(height: 10),
+                      _Attachment(attachment: attachment),
+                    ],
+                    if (message.regularActions.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          for (final action in message.regularActions)
+                            _ActionChip(
+                              action: action,
+                              onTap: () => _runAction(context, action),
+                            ),
+                        ],
+                      ),
+                    ],
+                    if (message.ack != null) ...[
+                      const SizedBox(height: 10),
+                      awaiting
+                          ? _AckRequest(
+                              reminders: message.ack!.reminders,
+                              onAcknowledge: () => _acknowledge(context),
+                            )
+                          : _AckDone(ack: message.ack!, locale: locale),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    return card;
+  }
+}
+
+class _Counter extends StatelessWidget {
+  const _Counter({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Tooltip(
+      message: S.of(context).t('received_times', {'count': '$count'}),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.onSurface,
+          borderRadius: BorderRadius.circular(99),
+        ),
+        child: Text(
+          '×$count',
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: theme.colorScheme.surface,
+            fontWeight: FontWeight.w700,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Attachment extends StatelessWidget {
+  const _Attachment({required this.attachment});
+
+  final MessageAttachment attachment;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    void open() => launchUrl(
+      Uri.parse(attachment.url),
+      mode: LaunchMode.externalApplication,
+    );
+
+    if (attachment.isImage) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: GestureDetector(
+          onTap: open,
+          child: Image.network(
+            attachment.url,
+            fit: BoxFit.cover,
+            height: 180,
+            width: double.infinity,
+            loadingBuilder: (context, child, progress) => progress == null
+                ? child
+                : Container(
+                    height: 180,
+                    color: theme.colorScheme.surfaceContainerHighest,
+                  ),
+            errorBuilder: (_, _, _) => const SizedBox.shrink(),
+          ),
+        ),
+      );
+    }
+
+    return InkWell(
+      onTap: open,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest.withValues(
+            alpha: 0.5,
+          ),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.description_outlined,
+              size: 20,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                attachment.name ?? S.of(context).t('attachment'),
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            Icon(
+              Icons.download_rounded,
+              size: 18,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ActionChip extends StatelessWidget {
+  const _ActionChip({required this.action, required this.onTap});
+
+  final MessageAction action;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                action.isHttp ? Icons.bolt_rounded : Icons.north_east_rounded,
+                size: 15,
+                color: theme.colorScheme.onSurface,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                action.label,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AckRequest extends StatelessWidget {
+  const _AckRequest({required this.reminders, required this.onAcknowledge});
+
+  final int reminders;
+  final VoidCallback onAcknowledge;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S.of(context);
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    final color = dark ? const Color(0xFFFBBF24) : const Color(0xFFB45309);
+
+    return Row(
+      children: [
+        Icon(Icons.schedule_rounded, size: 16, color: color),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            switch (reminders) {
+              0 => s.t('awaiting_ack'),
+              1 => s.t('reminder_sent_one'),
+              _ => s.t('reminders_sent', {'count': '$reminders'}),
+            },
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        // The theme's full-width minimum size cannot be used in a Row.
+        FilledButton.icon(
+          style: FilledButton.styleFrom(
+            minimumSize: const Size(0, 36),
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            textStyle: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+          onPressed: onAcknowledge,
+          icon: const Icon(Icons.check_rounded, size: 17),
+          label: Text(s.t('acknowledge')),
+        ),
+      ],
+    );
+  }
+}
+
+class _AckDone extends StatelessWidget {
+  const _AckDone({required this.ack, required this.locale});
+
+  final MessageAck ack;
+  final String locale;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S.of(context);
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    final color = dark ? const Color(0xFF34D399) : const Color(0xFF047857);
+    final label = ack.resolved
+        ? s.t('resolved_auto')
+        : ack.by != null
+        ? s.t('acknowledged_by', {'name': ack.by!})
+        : s.t('acknowledged');
+
+    return Row(
+      children: [
+        Icon(Icons.check_circle_rounded, size: 16, color: color),
+        const SizedBox(width: 6),
+        Flexible(
+          child: Text(
+            ack.at == null
+                ? label
+                : '$label · ${DateFormat.Hm(locale).format(ack.at!)}',
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}

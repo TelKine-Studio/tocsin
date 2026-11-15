@@ -1,0 +1,113 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/inter';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../views';
+@source '../js';
+
+/* Dark mode follows the "dark" class set on <html> (system, light or dark). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+    --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+    --color-brand-50: oklch(0.98 0.016 55);
+    --color-brand-100: oklch(0.954 0.04 55);
+    --color-brand-200: oklch(0.905 0.085 52);
+    --color-brand-300: oklch(0.835 0.13 49);
+    --color-brand-400: oklch(0.76 0.165 46);
+    --color-brand-500: oklch(0.69 0.19 42);
+    --color-brand-600: oklch(0.62 0.195 38);
+    --color-brand-700: oklch(0.53 0.17 36);
+    --color-brand-800: oklch(0.45 0.14 35);
+    --color-brand-900: oklch(0.38 0.11 35);
+    --color-brand-950: oklch(0.26 0.075 34);
+
+    --shadow-soft: 0 1px 2px rgb(16 24 40 / 0.04), 0 1px 3px rgb(16 24 40 / 0.06);
+    --shadow-lift: 0 12px 32px -12px rgb(16 24 40 / 0.18), 0 4px 8px -4px rgb(16 24 40 / 0.06);
+
+    --animate-fade-in: fade-in 0.2s ease-out;
+    --animate-slide-up: slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    --animate-pop: pop 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+
+    @keyframes fade-in {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    @keyframes slide-up {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes pop {
+        0% { opacity: 0; transform: scale(0.96) translateY(-6px); background-color: var(--color-brand-50); }
+        60% { opacity: 1; transform: scale(1); }
+        100% { background-color: transparent; }
+    }
+}
+
+@layer base {
+    html {
+        @apply antialiased;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+        @apply bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100;
+        font-feature-settings: 'cv11', 'ss01';
+    }
+
+    [x-cloak] {
+        display: none !important;
+    }
+
+    ::selection {
+        @apply bg-brand-200 text-brand-950;
+    }
+}
+
+@layer components {
+    .form-control {
+        @apply block w-full rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 text-sm text-zinc-900 shadow-xs transition placeholder:text-zinc-400 hover:border-zinc-300 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/15 focus:outline-none disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:hover:border-zinc-700 dark:disabled:bg-zinc-900/50;
+    }
+
+    .form-control-invalid {
+        @apply border-red-400 focus:border-red-500 focus:ring-red-500/15 dark:border-red-500/60;
+    }
+
+    .card {
+        @apply rounded-2xl border border-zinc-200/80 bg-white shadow-(--shadow-soft) dark:border-zinc-800 dark:bg-zinc-900;
+    }
+
+    .card-hover {
+        @apply transition duration-200 hover:-translate-y-0.5 hover:border-zinc-300 hover:shadow-(--shadow-lift) dark:hover:border-zinc-700;
+    }
+
+    .nav-link {
+        @apply relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-white/5 dark:hover:text-zinc-100;
+    }
+
+    .nav-link-active {
+        @apply bg-zinc-900 text-white shadow-sm hover:bg-zinc-900 hover:text-white dark:bg-white dark:text-zinc-900 dark:hover:bg-white dark:hover:text-zinc-900;
+    }
+
+    .eyebrow {
+        @apply text-xs font-semibold tracking-wider text-zinc-400 uppercase dark:text-zinc-500;
+    }
+
+    .kbd {
+        @apply inline-flex h-5 min-w-5 items-center justify-center rounded-md border border-zinc-200 bg-white px-1 font-sans text-[11px] font-medium text-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400;
+    }
+
+    .prose-message {
+        @apply text-sm leading-relaxed break-words whitespace-pre-line text-zinc-600 dark:text-zinc-300;
+    }
+
+    .dot-grid {
+        background-image: radial-gradient(rgb(255 255 255 / 0.14) 1px, transparent 1px);
+        background-size: 18px 18px;
+    }
+}
