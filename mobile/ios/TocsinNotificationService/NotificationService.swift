@@ -62,6 +62,10 @@ final class NotificationService: UNNotificationServiceExtension {
 
       self.registerActions(info["actions"] as? [[String: Any]] ?? [], content: content)
 
+      // One more unread message on the app icon (the app sets the exact
+      // count again when it opens).
+      content.badge = NSNumber(value: SharedBadge.increment())
+
       let finish = {
         if let icon = info["icon"] as? String, let url = URL(string: icon) {
           self.withTopicLogo(url, topic: info["topic"] as? String ?? "", content: content, completion: contentHandler)
@@ -225,3 +229,35 @@ enum SharedTokens {
     return String(data: data, encoding: .utf8)
   }
 }
+
+/// Unread count of the app icon, shared with the app (see AppDelegate).
+enum SharedBadge {
+  private static func query() -> [String: Any] {
+    var query: [String: Any] = [
+      kSecClass as String: kSecClassGenericPassword,
+      kSecAttrService as String: "ci.telkine.tocsin.badge",
+      kSecAttrAccount as String: "count",
+    ]
+    if let accessGroup = SharedTokens.accessGroup { query[kSecAttrAccessGroup as String] = accessGroup }
+    return query
+  }
+
+  /// Adds one and returns the new count.
+  static func increment() -> Int {
+    var read = query()
+    read[kSecReturnData as String] = true
+    var result: AnyObject?
+    let current = SecItemCopyMatching(read as CFDictionary, &result) == errSecSuccess
+      ? (result as? Data).flatMap { Int(String(decoding: $0, as: UTF8.self)) } ?? 0
+      : 0
+    let count = current + 1
+
+    var item = query()
+    SecItemDelete(item as CFDictionary)
+    item[kSecValueData as String] = Data(String(count).utf8)
+    item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+    SecItemAdd(item as CFDictionary, nil)
+    return count
+  }
+}
+

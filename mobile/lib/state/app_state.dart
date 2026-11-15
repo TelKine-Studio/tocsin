@@ -43,6 +43,20 @@ class AppState extends ChangeNotifier {
       onUpdate: _onRealtimeUpdate,
       tokenFor: this.storage.token,
     );
+    // The app icon shows the unread messages of the topics not muted.
+    addListener(_updateBadge);
+  }
+
+  int? _badge;
+
+  void _updateBadge() {
+    if (loading) return;
+    final count = subscriptions
+        .where((s) => !s.muted)
+        .fold(0, (sum, s) => sum + s.unread);
+    if (count == _badge) return;
+    _badge = count;
+    unawaited(push.setBadge(count));
   }
 
   static const appVersion = '0.1.0';
@@ -241,6 +255,10 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> onResumed() async {
+    // Pushes received in the background raised the icon badge: set the
+    // exact count again, even if the app thinks it did not change.
+    _badge = null;
+    _updateBadge();
     realtime.reconnectAll();
     pushPermission = await push.permission();
     await refreshAll();

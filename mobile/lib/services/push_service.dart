@@ -104,6 +104,16 @@ class PushService {
     });
   }
 
+  /// Unread messages shown on the app icon (iOS).
+  Future<void> setBadge(int count) async {
+    if (!isSupported) return;
+    try {
+      await _channel.invokeMethod('setBadge', {'count': count});
+    } catch (_) {
+      // An older native side without badges: not worth failing for.
+    }
+  }
+
   Future<void> openSettings() async {
     if (!isSupported) return;
     await _channel.invokeMethod('openSettings');

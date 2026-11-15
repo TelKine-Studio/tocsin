@@ -79,6 +79,17 @@ final class TocsinPushPlugin: NSObject, FlutterPlugin {
         Self.saveSharedToken(server: server, token: args["token"] as? String)
       }
       result(nil)
+    case "setBadge":
+      // Unread messages on the app icon. Also shared with the notification
+      // extension, which increments it when a push arrives.
+      let count = max(0, (call.arguments as? [String: Any])?["count"] as? Int ?? 0)
+      SharedBadge.write(count)
+      if #available(iOS 16.0, *) {
+        UNUserNotificationCenter.current().setBadgeCount(count)
+      } else {
+        UIApplication.shared.applicationIconBadgeNumber = count
+      }
+      result(nil)
     case "openSettings":
       if let url = URL(string: UIApplication.openSettingsURLString) {
         UIApplication.shared.open(url)
@@ -176,3 +187,28 @@ final class TocsinPushPlugin: NSObject, FlutterPlugin {
     #endif
   }
 }
+
+/// Unread count shown on the app icon, shared with the notification
+/// extension through the keychain group (no App Group needed).
+enum SharedBadge {
+  private static func query() -> [String: Any] {
+    var query: [String: Any] = [
+      kSecClass as String: kSecClassGenericPassword,
+      kSecAttrService as String: "ci.telkine.tocsin.badge",
+      kSecAttrAccount as String: "count",
+    ]
+    if let prefix = Bundle.main.object(forInfoDictionaryKey: "AppIdentifierPrefix") as? String, !prefix.isEmpty {
+      query[kSecAttrAccessGroup as String] = prefix + "ci.telkine.tocsin.shared"
+    }
+    return query
+  }
+
+  static func write(_ count: Int) {
+    var item = query()
+    SecItemDelete(item as CFDictionary)
+    item[kSecValueData as String] = Data(String(count).utf8)
+    item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+    SecItemAdd(item as CFDictionary, nil)
+  }
+}
+
