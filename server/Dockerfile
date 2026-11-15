@@ -32,7 +32,7 @@ RUN npm run build
 # --- Runtime -----------------------------------------------------------------
 FROM php:${PHP_VERSION}-fpm-alpine AS runtime
 
-ARG TOCSIN_VERSION=dev
+ARG TOCSIN_VERSION=0.1.0
 LABEL org.opencontainers.image.title="Tocsin" \
       org.opencontainers.image.description="Self-hosted push notification server" \
       org.opencontainers.image.licenses="MIT" \
