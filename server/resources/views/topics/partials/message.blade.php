@@ -40,7 +40,7 @@
                             <li class="text-xs">
                                 <time datetime="{{ $repeat['time']->toIso8601String() }}" title="{{ $repeat['time']->isoFormat('LLLL') }}" class="font-medium text-zinc-700 tabular-nums dark:text-zinc-300">{{ $repeatTime($repeat['time']) }}</time>
                                 @if ($changed)
-                                    <span class="text-zinc-500 dark:text-zinc-400">· {{ \Illuminate\Support\Str::limit(trim(($repeat['title'] ? $repeat['title'].' — ' : '').$repeat['body']), 140) }}</span>
+                                    <span class="text-zinc-500 dark:text-zinc-400">· {{ \Illuminate\Support\Str::limit(trim(($repeat['title'] && $repeat['title'] !== $message->title ? $repeat['title'].' — ' : '').$repeat['body']), 140) }}</span>
                                 @else
                                     <span class="text-zinc-400">· {{ __('same content') }}</span>
                                 @endif

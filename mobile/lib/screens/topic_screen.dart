@@ -857,7 +857,10 @@ class _RepeatsState extends State<_Repeats> {
                                           repeat.message == message.message
                                       ? s.t('same_content')
                                       : [
-                                          if (repeat.title?.isNotEmpty == true)
+                                          // The title only when it changed.
+                                          if (repeat.title?.isNotEmpty ==
+                                                  true &&
+                                              repeat.title != message.title)
                                             repeat.title!,
                                           repeat.message,
                                         ].join(' — '),
