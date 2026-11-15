@@ -167,43 +167,56 @@ class _ServerTile extends StatelessWidget {
             ? s.t('not_signed_in')
             : s.t('signed_in_as', {'name': account.email}),
       ),
-      trailing: PopupMenuButton<String>(
-        onSelected: (value) async {
-          switch (value) {
+      trailing: IconButton(
+        icon: const Icon(Icons.more_horiz_rounded),
+        onPressed: () async {
+          final choice = await showActionSheet<String>(
+            context,
+            header: Text(
+              server.host,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            actions: [
+              if (account == null)
+                SheetAction(
+                  value: 'login',
+                  label: s.t('sign_in'),
+                  icon: Icons.login_rounded,
+                )
+              else
+                SheetAction(
+                  value: 'logout',
+                  label: s.t('sign_out'),
+                  icon: Icons.logout_rounded,
+                ),
+              SheetAction(
+                value: 'remove',
+                label: s.t('remove_server'),
+                icon: Icons.delete_outline_rounded,
+                destructive: true,
+              ),
+            ],
+          );
+          if (!context.mounted) return;
+
+          switch (choice) {
             case 'login':
               await showLoginSheet(context, server.url);
             case 'logout':
               await state.logout(server.url);
             case 'remove':
-              final confirmed = await showDialog<bool>(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: Text(s.t('remove_server')),
-                  content: Text(
-                    s.t('remove_server_confirm', {'server': server.host}),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: Text(s.t('cancel')),
-                    ),
-                    FilledButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      child: Text(s.t('remove_server')),
-                    ),
-                  ],
-                ),
+              final confirmed = await showConfirmSheet(
+                context,
+                title: s.t('remove_server'),
+                message: s.t('remove_server_confirm', {'server': server.host}),
+                confirmLabel: s.t('remove_server'),
               );
-              if (confirmed == true) await state.removeServer(server.url);
+              if (confirmed) await state.removeServer(server.url);
           }
         },
-        itemBuilder: (context) => [
-          if (account == null)
-            PopupMenuItem(value: 'login', child: Text(s.t('sign_in')))
-          else
-            PopupMenuItem(value: 'logout', child: Text(s.t('sign_out'))),
-          PopupMenuItem(value: 'remove', child: Text(s.t('remove_server'))),
-        ],
       ),
     );
   }

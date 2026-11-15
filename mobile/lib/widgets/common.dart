@@ -63,26 +63,6 @@ class TopicAvatar extends StatelessWidget {
                         frame == null && !sync ? initial : child,
                   ),
           ),
-          if (!isPublic)
-            Positioned(
-              right: -3,
-              bottom: -3,
-              child: Container(
-                padding: const EdgeInsets.all(3),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).cardTheme.color,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: Theme.of(context).dividerTheme.color ?? Colors.grey,
-                  ),
-                ),
-                child: Icon(
-                  Icons.lock,
-                  size: size * 0.2,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
         ],
       ),
     );
@@ -307,4 +287,254 @@ String formatRelative(BuildContext context, DateTime time) {
   if (diff.inDays < 1) return fr ? '${diff.inHours} h' : '${diff.inHours}h';
   if (diff.inDays < 7) return fr ? '${diff.inDays} j' : '${diff.inDays}d';
   return MaterialLocalizations.of(context).formatShortDate(time);
+}
+
+/// Small lock shown next to the name of a private topic.
+class PrivateLock extends StatelessWidget {
+  const PrivateLock({super.key, this.size = 15});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: S.of(context).t('private_topic'),
+      child: Icon(
+        Icons.lock_rounded,
+        size: size,
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+      ),
+    );
+  }
+}
+
+/// One choice of [showActionSheet].
+class SheetAction<T> {
+  const SheetAction({
+    required this.value,
+    required this.label,
+    required this.icon,
+    this.destructive = false,
+    this.subtitle,
+  });
+
+  final T value;
+  final String label;
+  final IconData icon;
+  final bool destructive;
+  final String? subtitle;
+}
+
+/// Tocsin's own action sheet (instead of Material menus): a rounded card
+/// of choices rising from the bottom, with a separate Cancel button.
+Future<T?> showActionSheet<T>(
+  BuildContext context, {
+  Widget? header,
+  required List<SheetAction<T>> actions,
+}) {
+  return showModalBottomSheet<T>(
+    context: context,
+    backgroundColor: Colors.transparent,
+    elevation: 0,
+    barrierColor: Colors.black.withValues(alpha: 0.35),
+    builder: (context) {
+      final theme = Theme.of(context);
+      final dark = theme.brightness == Brightness.dark;
+      final cardColor = dark ? const Color(0xFF1C1C1F) : Colors.white;
+      final line = dark ? const Color(0xFF2C2C30) : const Color(0xFFEDEDEF);
+
+      Widget card(Widget child) => Material(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(20),
+        clipBehavior: Clip.antiAlias,
+        child: child,
+      );
+
+      return SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              card(
+                Column(
+                  children: [
+                    if (header != null) ...[
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
+                        child: header,
+                      ),
+                      Divider(height: 1, thickness: 0.6, color: line),
+                    ],
+                    for (var i = 0; i < actions.length; i++) ...[
+                      if (i > 0)
+                        Divider(
+                          height: 1,
+                          thickness: 0.6,
+                          indent: 56,
+                          color: line,
+                        ),
+                      _SheetTile(action: actions[i]),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              card(
+                InkWell(
+                  onTap: () => Navigator.pop(context),
+                  child: SizedBox(
+                    height: 56,
+                    child: Center(
+                      child: Text(
+                        S.of(context).t('cancel'),
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: theme.colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+class _SheetTile<T> extends StatelessWidget {
+  const _SheetTile({required this.action});
+
+  final SheetAction<T> action;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = action.destructive
+        ? const Color(0xFFDC2626)
+        : theme.colorScheme.onSurface;
+
+    return InkWell(
+      onTap: () => Navigator.pop(context, action.value),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
+        child: Row(
+          children: [
+            Icon(action.icon, size: 22, color: color),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    action.label,
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: color,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  if (action.subtitle != null)
+                    Text(
+                      action.subtitle!,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Confirmation in the same style as [showActionSheet], for destructive
+/// choices. Returns true when confirmed.
+Future<bool> showConfirmSheet(
+  BuildContext context, {
+  required String title,
+  required String message,
+  required String confirmLabel,
+  IconData icon = Icons.delete_outline_rounded,
+  bool destructive = true,
+}) async {
+  final result = await showModalBottomSheet<bool>(
+    context: context,
+    backgroundColor: Colors.transparent,
+    elevation: 0,
+    barrierColor: Colors.black.withValues(alpha: 0.35),
+    builder: (context) {
+      final theme = Theme.of(context);
+      final dark = theme.brightness == Brightness.dark;
+      final accent = destructive
+          ? const Color(0xFFDC2626)
+          : theme.colorScheme.primary;
+
+      return SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+          child: Material(
+            color: dark ? const Color(0xFF1C1C1F) : Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(22, 26, 22, 18),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(icon, color: accent, size: 26),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    message,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                  FilledButton(
+                    style: FilledButton.styleFrom(backgroundColor: accent),
+                    onPressed: () => Navigator.pop(context, true),
+                    child: Text(confirmLabel),
+                  ),
+                  const SizedBox(height: 6),
+                  TextButton(
+                    style: TextButton.styleFrom(
+                      minimumSize: const Size.fromHeight(48),
+                    ),
+                    onPressed: () => Navigator.pop(context, false),
+                    child: Text(S.of(context).t('cancel')),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    },
+  );
+
+  return result ?? false;
 }

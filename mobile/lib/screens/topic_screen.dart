@@ -57,31 +57,14 @@ class _TopicScreenState extends State<TopicScreen> {
 
   Future<void> _confirmUnsubscribe(Subscription subscription) async {
     final s = S.of(context);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(s.t('unsubscribe')),
-        content: Text(
-          s.t('unsubscribe_confirm', {'topic': subscription.displayName}),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(s.t('cancel')),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              minimumSize: const Size(0, 44),
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(s.t('unsubscribe')),
-          ),
-        ],
-      ),
+    final confirmed = await showConfirmSheet(
+      context,
+      title: s.t('unsubscribe'),
+      message: s.t('unsubscribe_confirm', {'topic': subscription.displayName}),
+      confirmLabel: s.t('unsubscribe'),
     );
 
-    if (confirmed == true && mounted) {
+    if (confirmed && mounted) {
       Navigator.of(context).pop();
       await _state.unsubscribe(subscription.id);
     }
@@ -198,37 +181,98 @@ class _TopicScreenState extends State<TopicScreen> {
 
   Widget _menu(BuildContext context, Subscription subscription) {
     final s = S.of(context);
-    final theme = Theme.of(context);
-    final state = context.read<AppState>();
 
-    return PopupMenuButton<String>(
+    return IconButton(
       icon: const Icon(Icons.more_horiz_rounded),
-      onSelected: (value) => switch (value) {
-        'mute' => state.toggleMute(subscription.id),
-        _ => _confirmUnsubscribe(subscription),
-      },
-      itemBuilder: (context) => [
-        PopupMenuItem(
-          value: 'mute',
-          child: ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(
-              subscription.muted
+      onPressed: () async {
+        final state = context.read<AppState>();
+        final messenger = ScaffoldMessenger.of(context);
+        final choice = await showActionSheet<String>(
+          context,
+          header: _SheetHeader(subscription: subscription),
+          actions: [
+            SheetAction(
+              value: 'mute',
+              label: subscription.muted ? s.t('unmute') : s.t('mute'),
+              icon: subscription.muted
                   ? Icons.notifications_active_outlined
                   : Icons.notifications_off_outlined,
             ),
-            title: Text(subscription.muted ? s.t('unmute') : s.t('mute')),
-          ),
-        ),
-        PopupMenuItem(
-          value: 'unsubscribe',
-          child: ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.delete_outline, color: theme.colorScheme.error),
-            title: Text(
-              s.t('unsubscribe'),
-              style: TextStyle(color: theme.colorScheme.error),
+            SheetAction(
+              value: 'copy',
+              label: s.t('copy_topic'),
+              icon: Icons.copy_rounded,
             ),
+            SheetAction(
+              value: 'unsubscribe',
+              label: s.t('unsubscribe'),
+              icon: Icons.delete_outline_rounded,
+              destructive: true,
+            ),
+          ],
+        );
+
+        switch (choice) {
+          case 'mute':
+            await state.toggleMute(subscription.id);
+          case 'copy':
+            await Clipboard.setData(ClipboardData(text: subscription.topic));
+            messenger.showSnackBar(SnackBar(content: Text(s.t('copied'))));
+          case 'unsubscribe':
+            await _confirmUnsubscribe(subscription);
+        }
+      },
+    );
+  }
+}
+
+/// Topic shown at the top of its action sheet.
+class _SheetHeader extends StatelessWidget {
+  const _SheetHeader({required this.subscription});
+
+  final Subscription subscription;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        TopicAvatar(
+          name: subscription.topic,
+          label: subscription.displayName,
+          isPublic: subscription.isPublic,
+          iconUrl: subscription.iconUrl,
+          size: 40,
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      subscription.displayName,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  if (!subscription.isPublic) ...[
+                    const SizedBox(width: 5),
+                    const PrivateLock(size: 14),
+                  ],
+                ],
+              ),
+              Text(
+                '#${subscription.topic}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
           ),
         ),
       ],
@@ -256,13 +300,23 @@ class _Header extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              subscription.displayName,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-                fontSize: 17,
-              ),
+            Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    subscription.displayName,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 17,
+                    ),
+                  ),
+                ),
+                if (!subscription.isPublic) ...[
+                  const SizedBox(width: 5),
+                  const PrivateLock(size: 15),
+                ],
+              ],
             ),
             const SizedBox(height: 1),
             Row(
