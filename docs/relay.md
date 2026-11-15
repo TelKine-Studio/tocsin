@@ -30,7 +30,7 @@ The relay forwards each notification to Apple / Google and keeps only daily coun
 
 ## Operating a relay
 
-Any Tocsin server can act as a relay (this is what Telkine runs):
+Any Tocsin server can act as a relay (this is what Telkine runs). A relay receives notifications from many instances at the same time: run it on **PostgreSQL** (`DB_CONNECTION=pgsql`, see [deployment](deployment.md)) rather than SQLite.
 
 1. Configure the server's **own Apple Push key** (the key of the developer account that publishes the app).
 2. Start the instance with `TOCSIN_RELAY_OPERATOR=true`: the relay screens (plans, payments, client instances) and the relay API only exist in this mode, so self-hosted instances never see them. Then, in **Settings → Relay**, enable **Act as a push relay**, choose whether instances can register by themselves, and set the free plan limit and the burst limit.
