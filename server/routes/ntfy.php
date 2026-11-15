@@ -33,6 +33,12 @@ Route::post('v1/messages/{message}/ack', AcknowledgementController::class)
     ->middleware(['signed', 'throttle:api', AuthenticateApi::class, EnsureUserIsActive::class])
     ->name('messages.acknowledge');
 
+// A topic URL opened in a browser (ntfy shows its web page): go to the
+// topic page. Publishing to the same URL is POST/PUT, below.
+Route::get('{topic}', fn (string $topic) => redirect()->route('topics.show', $topic))
+    ->where('topic', '[-_A-Za-z0-9]{1,64}')
+    ->name('ntfy.topic');
+
 Route::middleware([AuthenticateApi::class, EnsureUserIsActive::class])->group(function () {
     $topic = '[-_A-Za-z0-9]{1,64}';
 

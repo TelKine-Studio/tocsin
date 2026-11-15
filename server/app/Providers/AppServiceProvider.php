@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Http\Middleware\SetLocale;
 use App\Models\Invitation;
 use App\Models\Topic;
 use App\Models\User;
@@ -29,6 +30,16 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->app->make(Settings::class)->applyToConfig();
+
+        // Error pages can render before the SetLocale middleware ran (unknown
+        // route, missing model): pick the language before they translate.
+        View::composer(['errors::*', 'errors.*'], function () {
+            try {
+                $this->app->make(SetLocale::class)->apply(request(), browserFallback: true);
+            } catch (\Throwable) {
+                // Database down (500/503): keep the default language.
+            }
+        });
 
         Gate::define('admin', fn (User $user) => $user->isAdmin());
 

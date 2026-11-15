@@ -16,12 +16,27 @@ class SetLocale
 
     public function handle(Request $request, Closure $next): Response
     {
-        $locale = $request->user()?->locale ?: $this->settings->string('app.locale', 'en');
+        $this->apply($request);
+
+        return $next($request);
+    }
+
+    /**
+     * Also used by error pages, which may render before this middleware and
+     * before the session (unknown user): they then follow the browser.
+     */
+    public function apply(Request $request, bool $browserFallback = false): void
+    {
+        $locale = $request->user()?->locale;
+
+        if (! $locale && $browserFallback && $request->headers->has('Accept-Language')) {
+            $locale = $request->getPreferredLanguage(array_keys(self::AVAILABLE));
+        }
+
+        $locale = $locale ?: $this->settings->string('app.locale', 'en');
 
         if (array_key_exists($locale, self::AVAILABLE)) {
             app()->setLocale($locale);
         }
-
-        return $next($request);
     }
 }
