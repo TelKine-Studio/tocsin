@@ -427,6 +427,39 @@ class TopicMessage {
   List<MessageAction> get regularActions =>
       actions.where((a) => !a.ack).toList();
 
+  /// The message as shown by a tapped notification, so that the app can
+  /// display it before syncing with the server. Null if the notification
+  /// does not carry it (e.g. older servers).
+  static TopicMessage? fromNotification(Map<String, dynamic> payload) {
+    final id = int.tryParse('${payload['id'] ?? ''}');
+    final message = payload['message'];
+    if (id == null || message is! Map || message['body'] == null) return null;
+
+    final image = payload['image'] as String?;
+    final time = int.tryParse('${payload['time'] ?? ''}');
+
+    return TopicMessage(
+      id: id,
+      topic: payload['topic'] as String? ?? '',
+      title: (message['title'] as String?)?.isNotEmpty == true
+          ? message['title'] as String
+          : null,
+      message: message['body'].toString(),
+      priority: int.tryParse('${payload['priority'] ?? ''}') ?? 3,
+      tags: const [],
+      click: payload['click'] as String?,
+      actions: ((payload['actions'] as List?) ?? const [])
+          .whereType<Map>()
+          .map((e) => MessageAction.fromJson(e.cast<String, dynamic>()))
+          .where((a) => !a.ack)
+          .toList(),
+      attachment: image == null ? null : MessageAttachment(url: image),
+      time: time == null
+          ? DateTime.now()
+          : DateTime.fromMillisecondsSinceEpoch(time * 1000),
+    );
+  }
+
   factory TopicMessage.fromJson(Map<String, dynamic> json) => TopicMessage(
     id: (json['id'] as num).toInt(),
     topic: json['topic'] as String? ?? '',

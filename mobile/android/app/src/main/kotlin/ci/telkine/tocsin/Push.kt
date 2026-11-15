@@ -36,6 +36,14 @@ object Push {
             "topic" to topic,
             "actions" to actions,
             "actionIndex" to extras.getInt("tocsin.actionIndex", -1).takeIf { it >= 0 },
+            "id" to extras.getString("tocsin.id"),
+            "priority" to extras.getString("tocsin.priority"),
+            "click" to extras.getString("tocsin.click"),
+            "image" to extras.getString("tocsin.image"),
+            "time" to extras.getLong("tocsin.time", 0).takeIf { it > 0 },
+            "message" to extras.getString("tocsin.body")?.let {
+                mapOf("title" to (extras.getString("tocsin.title") ?: ""), "body" to it)
+            },
         )
     }
 

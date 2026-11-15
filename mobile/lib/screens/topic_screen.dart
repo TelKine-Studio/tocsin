@@ -393,6 +393,20 @@ class _MessageCard extends StatelessWidget {
   final TopicMessage message;
   final String subscriptionId;
 
+  void _copy(BuildContext context) {
+    final title = message.title?.isNotEmpty == true ? '${message.title}\n' : '';
+    Clipboard.setData(ClipboardData(text: '$title${message.message}'));
+    HapticFeedback.selectionClick();
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(S.of(context).t('message_copied')),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+  }
+
   Future<void> _runAction(BuildContext context, MessageAction action) async {
     final messenger = ScaffoldMessenger.of(context);
     final s = S.of(context);
@@ -462,17 +476,9 @@ class _MessageCard extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: message.click == null
-            ? null
-            : () => launchUrl(
-                Uri.parse(message.click!),
-                mode: LaunchMode.externalApplication,
-              ),
-        onLongPress: () {
-          Clipboard.setData(ClipboardData(text: message.message));
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text(s.t('copied'))));
-        },
+        // A tap copies the message; its link has its own button.
+        onTap: () => _copy(context),
+        onLongPress: () => _copy(context),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
           child: Row(
@@ -536,7 +542,7 @@ class _MessageCard extends StatelessWidget {
                     ),
                     if (hasTitle) ...[
                       const SizedBox(height: 3),
-                      SelectableText(
+                      Text(
                         message.message,
                         style: theme.textTheme.bodyMedium?.copyWith(
                           height: 1.4,
@@ -560,12 +566,25 @@ class _MessageCard extends StatelessWidget {
                       const SizedBox(height: 10),
                       _Attachment(attachment: attachment),
                     ],
-                    if (message.regularActions.isNotEmpty) ...[
+                    if (message.regularActions.isNotEmpty ||
+                        message.click != null) ...[
                       const SizedBox(height: 10),
                       Wrap(
                         spacing: 6,
                         runSpacing: 6,
                         children: [
+                          if (message.click != null)
+                            _ActionChip(
+                              action: MessageAction(
+                                action: 'view',
+                                label: s.t('open_link'),
+                                url: message.click!,
+                              ),
+                              onTap: () => launchUrl(
+                                Uri.parse(message.click!),
+                                mode: LaunchMode.externalApplication,
+                              ),
+                            ),
                           for (final action in message.regularActions)
                             _ActionChip(
                               action: action,

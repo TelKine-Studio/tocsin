@@ -278,9 +278,9 @@ class _SubscriptionRow extends StatelessWidget {
                   size: 50,
                 ),
                 Positioned(
-                  right: -2,
-                  bottom: -2,
-                  child: LiveIndicator(connected: connected, size: 13),
+                  right: -3,
+                  bottom: -3,
+                  child: LiveIndicator(connected: connected, size: 16),
                 ),
               ],
             ),

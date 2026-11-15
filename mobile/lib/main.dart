@@ -34,7 +34,7 @@ Future<void> main() async {
   }
 }
 
-void _openFromPush(AppState state, Map<String, dynamic> payload) {
+Future<void> _openFromPush(AppState state, Map<String, dynamic> payload) async {
   final server = payload['server'] as String?;
   final topic = payload['topic'] as String?;
   if (server == null || topic == null) return;
@@ -59,14 +59,15 @@ void _openFromPush(AppState state, Map<String, dynamic> payload) {
     if (!action.isHttp) return;
   }
 
-  final subscription = state.subscriptionFor(server, topic);
-  if (subscription == null || state.openSubscriptionId == subscription.id) {
+  // Shows the notified message at once, then syncs in the background.
+  final subscriptionId = await state.openFromNotification(payload);
+  if (subscriptionId == null || state.openSubscriptionId == subscriptionId) {
     return;
   }
 
   navigatorKey.currentState?.push(
     MaterialPageRoute(
-      builder: (_) => TopicScreen(subscriptionId: subscription.id),
+      builder: (_) => TopicScreen(subscriptionId: subscriptionId),
     ),
   );
 }

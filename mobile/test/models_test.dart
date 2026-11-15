@@ -184,4 +184,42 @@ void main() {
     expect(done.awaitsAck, isFalse);
     expect(done.ack?.label, 'Acknowledged by Awa');
   });
+
+  test('builds the message carried by a tapped notification', () {
+    final message = TopicMessage.fromNotification({
+      'server': 'https://push.telkine.net',
+      'topic': 'alerts',
+      'id': '42',
+      'priority': 5,
+      'click': 'https://grafana.test',
+      'time': 1700000000,
+      'message': {'title': 'Disk', 'body': 'Almost full'},
+      'actions': [
+        {
+          'action': 'http',
+          'label': 'Acknowledge',
+          'url': 'https://a.test',
+          'ack': true,
+        },
+        {'action': 'view', 'label': 'Open', 'url': 'https://b.test'},
+      ],
+    });
+
+    expect(message?.id, 42);
+    expect(message?.title, 'Disk');
+    expect(message?.message, 'Almost full');
+    expect(message?.priority, 5);
+    expect(message?.actions.map((a) => a.label), ['Open']);
+    expect(message?.time, DateTime.fromMillisecondsSinceEpoch(1700000000000));
+
+    // No title, and nothing to show without the message.
+    expect(
+      TopicMessage.fromNotification({
+        'id': 1,
+        'message': {'title': '', 'body': 'hi'},
+      })?.title,
+      isNull,
+    );
+    expect(TopicMessage.fromNotification({'id': 1}), isNull);
+  });
 }

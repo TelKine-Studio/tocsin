@@ -53,6 +53,13 @@ final class NotificationService: UNNotificationServiceExtension {
     }
 
     group.notify(queue: .global()) {
+      // The message as the server sent it (or as fetched in confidential
+      // mode), for the app to display on tap before syncing.
+      info["message"] = ["title": content.subtitle.isEmpty ? "" : content.title, "body": content.body]
+      var userInfo = content.userInfo
+      userInfo["tocsin"] = info
+      content.userInfo = userInfo
+
       self.registerActions(info["actions"] as? [[String: Any]] ?? [], content: content)
 
       let finish = {

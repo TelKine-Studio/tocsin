@@ -96,6 +96,17 @@ class Storage {
     return fresh;
   }
 
+  /// Adds [incoming] messages that are not cached yet, without touching
+  /// the known ones (a notification carries less than the server).
+  Future<List<TopicMessage>> addMissingMessages(
+    String subscriptionId,
+    List<TopicMessage> incoming,
+  ) async {
+    final known = (await loadMessages(subscriptionId)).map((m) => m.id).toSet();
+    final fresh = incoming.where((m) => !known.contains(m.id)).toList();
+    return fresh.isEmpty ? fresh : addMessages(subscriptionId, fresh);
+  }
+
   Future<void> replaceMessages(
     String subscriptionId,
     List<TopicMessage> messages,

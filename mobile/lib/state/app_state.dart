@@ -383,6 +383,39 @@ class AppState extends ChangeNotifier {
     await loadMessages(subscriptionId);
   }
 
+  /// A notification was tapped: shows its message at once, from the data
+  /// it carries, then syncs with the server in the background. Returns the
+  /// subscription to open.
+  Future<String?> openFromNotification(Map<String, dynamic> payload) async {
+    final server = payload['server'] as String?;
+    final topic = payload['topic'] as String?;
+    if (server == null || topic == null) return null;
+
+    final subscription = subscriptionFor(server, topic);
+    if (subscription == null) return null;
+
+    final message = TopicMessage.fromNotification(payload);
+    if (message != null) {
+      final fresh = await storage.addMissingMessages(subscription.id, [
+        message,
+      ]);
+      if (fresh.isNotEmpty) {
+        subscription.absorb(message, countAsUnread: false);
+        await storage.saveSubscriptions(subscriptions);
+        if (_messages.containsKey(subscription.id)) {
+          _messages[subscription.id] = await storage.loadMessages(
+            subscription.id,
+          );
+        }
+        notifyListeners();
+      }
+    }
+
+    // The server has the full message (attachment, acknowledgement...).
+    unawaited(refresh(subscription.id).catchError((_) {}));
+    return subscription.id;
+  }
+
   /// Picks up a new name or logo of the topic. Best effort.
   Future<void> _refreshTopicInfo(Subscription subscription) async {
     try {

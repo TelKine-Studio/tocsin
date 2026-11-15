@@ -47,7 +47,11 @@ class TocsinMessagingService : FirebaseMessagingService() {
         show(data, server, topic)
     }
 
+    /** Data of the notification being built, read by [intent]. */
+    private var current: Map<String, String>? = null
+
     private fun show(data: Map<String, String>, server: String, topic: String) {
+        current = data
         val priority = data["priority"]?.toIntOrNull() ?: 3
         val channelId = ensureChannel(priority)
         val id = (data["id"]?.toIntOrNull() ?: System.currentTimeMillis().toInt())
@@ -94,6 +98,16 @@ class TocsinMessagingService : FirebaseMessagingService() {
             putExtra("tocsin.topic", topic)
             putExtra("tocsin.actions", actions)
             putExtra("tocsin.actionIndex", actionIndex)
+            // The message as displayed: the app shows it before syncing.
+            current?.let { data ->
+                putExtra("tocsin.id", data["id"])
+                putExtra("tocsin.title", if (data["subtitle"].isNullOrEmpty()) "" else data["title"])
+                putExtra("tocsin.body", data["body"])
+                putExtra("tocsin.priority", data["priority"])
+                putExtra("tocsin.click", data["click"])
+                putExtra("tocsin.image", data["image"])
+                putExtra("tocsin.time", System.currentTimeMillis() / 1000)
+            }
         }
         return PendingIntent.getActivity(this, requestCode, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     }

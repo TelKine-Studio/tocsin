@@ -222,19 +222,28 @@ class LiveIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = S.of(context);
+    final theme = Theme.of(context);
+    // Two circles (ring + dot centered inside) rather than one circle with a
+    // border: at this size, a border made the dot look off-center.
+    final ring = (size * 0.2).clamp(2.0, 3.0);
     return Tooltip(
       message: connected ? s.t('connected') : s.t('offline'),
       child: Container(
         width: size,
         height: size,
+        alignment: Alignment.center,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: connected
-              ? const Color(0xFF10B981)
-              : Theme.of(context).colorScheme.outlineVariant,
-          border: Border.all(
-            color: Theme.of(context).cardTheme.color ?? Colors.white,
-            width: 2,
+          color: theme.scaffoldBackgroundColor,
+        ),
+        child: Container(
+          width: size - ring * 2,
+          height: size - ring * 2,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: connected
+                ? const Color(0xFF10B981)
+                : theme.colorScheme.outlineVariant,
           ),
         ),
       ),

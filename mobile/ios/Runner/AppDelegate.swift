@@ -139,9 +139,18 @@ final class TocsinPushPlugin: NSObject, FlutterPlugin {
     SecItemAdd(query as CFDictionary, nil)
   }
 
-  /// The "tocsin" dictionary added by the server to every push.
+  /// The "tocsin" dictionary added by the server to every push, with the
+  /// message as displayed: the app shows it right away, before syncing.
   private static func payload(_ notification: UNNotification) -> [String: Any] {
-    (notification.request.content.userInfo["tocsin"] as? [String: Any]) ?? [:]
+    let content = notification.request.content
+    var payload = (content.userInfo["tocsin"] as? [String: Any]) ?? [:]
+    if payload["message"] == nil {
+      // Set by the server: message title as title, topic as subtitle.
+      let hasTitle = !content.subtitle.isEmpty
+      payload["message"] = ["title": hasTitle ? content.title : "", "body": content.body]
+    }
+    payload["time"] = Int(notification.date.timeIntervalSince1970)
+    return payload
   }
 
   /// APNs environment of this build, read from the embedded provisioning

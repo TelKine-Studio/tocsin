@@ -151,7 +151,7 @@
                         @csrf
                         <div class="border-b border-zinc-100 bg-linear-to-br from-zinc-100 to-zinc-50 p-5 dark:border-zinc-800 dark:from-zinc-800/60 dark:to-zinc-900">
                             <p class="eyebrow mb-3">{{ __('Preview') }}</p>
-                            <x-ui.iphone-notification live :title="$topic->label()" />
+                            <x-ui.iphone-notification live :title="$topic->label()" :icon="$topic->iconUrl()" />
                         </div>
                         <div class="space-y-4 p-5">
                             <x-ui.input name="title" :label="__('Title')" maxlength="255" x-model="title" optional :placeholder="__('Backup completed')" />
