@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 54;
+	objectVersion = 60;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -188,7 +188,6 @@
 				A984A153BB2966E9F38164F9 /* Info.plist */,
 				354624D86103C565D8F1587A /* TocsinNotificationService.entitlements */,
 			);
-			name = TocsinNotificationService;
 			path = TocsinNotificationService;
 			sourceTree = "<group>";
 		};
@@ -284,7 +283,7 @@
 			);
 			mainGroup = 97C146E51CF9000F007C117D;
 			packageReferences = (
-				781AD8BC2B33823900A9FFBB /* XCLocalSwiftPackageReference "FlutterGeneratedPluginSwiftPackage" */,
+				781AD8BC2B33823900A9FFBB /* XCLocalSwiftPackageReference "Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage" */,
 			);
 			productRefGroup = 97C146EF1CF9000F007C117D /* Products */;
 			projectDirPath = "";
@@ -428,6 +427,7 @@
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = NO;
 				CODE_SIGN_ENTITLEMENTS = TocsinNotificationService/TocsinNotificationService.entitlements;
+				DEVELOPMENT_TEAM = 4ZA5MXYWG7;
 				FLUTTER_BUILD_NAME = "$(FLUTTER_BUILD_NAME)";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = TocsinNotificationService/Info.plist;
@@ -576,6 +576,7 @@
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = NO;
 				CODE_SIGN_ENTITLEMENTS = TocsinNotificationService/TocsinNotificationService.entitlements;
+				DEVELOPMENT_TEAM = 4ZA5MXYWG7;
 				FLUTTER_BUILD_NAME = "$(FLUTTER_BUILD_NAME)";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = TocsinNotificationService/Info.plist;
@@ -761,6 +762,7 @@
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = NO;
 				CODE_SIGN_ENTITLEMENTS = TocsinNotificationService/TocsinNotificationService.entitlements;
+				DEVELOPMENT_TEAM = 4ZA5MXYWG7;
 				FLUTTER_BUILD_NAME = "$(FLUTTER_BUILD_NAME)";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = TocsinNotificationService/Info.plist;
@@ -825,7 +827,7 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		781AD8BC2B33823900A9FFBB /* XCLocalSwiftPackageReference "FlutterGeneratedPluginSwiftPackage" */ = {
+		781AD8BC2B33823900A9FFBB /* XCLocalSwiftPackageReference "Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage;
 		};
