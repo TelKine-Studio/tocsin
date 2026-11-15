@@ -32,4 +32,33 @@ class GroupingRegressionTest extends TestCase
 
         $this->assertSame(4, Message::count(), Message::pluck('collapse_key', 'title')->toJson());
     }
+
+    public function test_grouped_messages_keep_each_send(): void
+    {
+        Queue::fake();
+        $user = User::factory()->create();
+        $topic = Topic::factory()->for($user, 'owner')->create(['name' => 'cpu']);
+        $token = $user->createToken('cli')->plainTextToken;
+
+        $this->travelTo(now()->setTime(16, 49, 0));
+        $this->withToken($token)->postJson('/api/v1/topics/cpu/messages', ['message' => 'CPU at 91%', 'collapse' => 'cpu-web-1'])->assertCreated();
+        $this->travel(5)->seconds();
+        $this->withToken($token)->postJson('/api/v1/topics/cpu/messages', ['message' => 'CPU at 97%', 'collapse' => 'cpu-web-1'])->assertCreated();
+        $this->travel(5)->seconds();
+        $this->withToken($token)->postJson('/api/v1/topics/cpu/messages', ['message' => 'CPU at 97%', 'collapse' => 'cpu-web-1'])->assertCreated();
+
+        $message = Message::sole();
+        $this->assertSame(3, $message->occurrences);
+        $this->assertSame(['CPU at 91%', 'CPU at 97%', 'CPU at 97%'], array_column($message->repeatLog(), 'body'));
+
+        $this->withToken($token)->getJson('/api/v1/topics/cpu/messages')
+            ->assertJsonPath('data.0.occurrences', 3)
+            ->assertJsonPath('data.0.repeats.0.message', 'CPU at 91%')
+            ->assertJsonPath('data.0.repeats.2.time', now()->getTimestamp());
+
+        $this->actingAs($user)->get('/topics/cpu')
+            ->assertSee(__('Received :count times', ['count' => 3]))
+            ->assertSee('CPU at 91%')
+            ->assertSee(__('same content'));
+    }
 }

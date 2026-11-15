@@ -1124,5 +1124,9 @@
     "The server is under maintenance or restarting. Try again in a few minutes.": "Le serveur est en maintenance ou redémarre. Réessayez dans quelques minutes.",
     "This request cannot be completed": "Cette requête ne peut pas aboutir",
     "Check the address, then try again.": "Vérifiez l’adresse, puis réessayez.",
-    "An unexpected error occurred on the server. Try again in a moment.": "Une erreur inattendue s’est produite sur le serveur. Réessayez dans un instant."
+    "An unexpected error occurred on the server. Try again in a moment.": "Une erreur inattendue s’est produite sur le serveur. Réessayez dans un instant.",
+    "Received :count times": "Reçu :count fois",
+    ":count sends between :first and :last": ":count envois entre :first et :last",
+    "the latest :count shown": "les :count derniers affichés",
+    "same content": "même contenu"
 }

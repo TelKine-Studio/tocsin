@@ -626,10 +626,6 @@ class _MessageCard extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        if (message.occurrences > 1) ...[
-                          _Counter(count: message.occurrences),
-                          const SizedBox(width: 6),
-                        ],
                         Padding(
                           padding: const EdgeInsets.only(top: 2),
                           child: Text(
@@ -665,6 +661,10 @@ class _MessageCard extends StatelessWidget {
                           fontWeight: FontWeight.w500,
                         ),
                       ),
+                    ],
+                    if (message.occurrences > 1) ...[
+                      const SizedBox(height: 8),
+                      _Repeats(message: message, locale: locale),
                     ],
                     if (attachment != null) ...[
                       const SizedBox(height: 10),
@@ -719,31 +719,163 @@ class _MessageCard extends StatelessWidget {
   }
 }
 
-class _Counter extends StatelessWidget {
-  const _Counter({required this.count});
+/// "Received N times" of a grouped message, unfolding the time (and the
+/// content, when it changed) of each send.
+class _Repeats extends StatefulWidget {
+  const _Repeats({required this.message, required this.locale});
 
-  final int count;
+  final TopicMessage message;
+  final String locale;
+
+  @override
+  State<_Repeats> createState() => _RepeatsState();
+}
+
+class _RepeatsState extends State<_Repeats> {
+  bool _open = false;
+
+  String _time(DateTime time) {
+    final now = DateTime.now();
+    final today = DateUtils.isSameDay(time, now);
+    return today
+        ? DateFormat.Hms(widget.locale).format(time)
+        : DateFormat('d MMM, HH:mm:ss', widget.locale).format(time);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final s = S.of(context);
     final theme = Theme.of(context);
-    return Tooltip(
-      message: S.of(context).t('received_times', {'count': '$count'}),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.onSurface,
-          borderRadius: BorderRadius.circular(99),
-        ),
-        child: Text(
-          '×$count',
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: theme.colorScheme.surface,
-            fontWeight: FontWeight.w700,
-            fontFeatures: const [FontFeature.tabularFigures()],
-          ),
-        ),
+    final scheme = theme.colorScheme;
+    final dark = theme.brightness == Brightness.dark;
+    final message = widget.message;
+    final repeats = message.repeats;
+    final canOpen = repeats.isNotEmpty;
+    final tabular = const [FontFeature.tabularFigures()];
+
+    final chip = Container(
+      padding: const EdgeInsets.fromLTRB(8, 3, 6, 3),
+      decoration: BoxDecoration(
+        color: scheme.onSurface,
+        borderRadius: BorderRadius.circular(99),
       ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.layers_rounded, size: 13, color: scheme.surface),
+          const SizedBox(width: 4),
+          Text(
+            s.t('received_times', {'count': '${message.occurrences}'}),
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: scheme.surface,
+              fontWeight: FontWeight.w700,
+              fontFeatures: tabular,
+            ),
+          ),
+          if (canOpen) ...[
+            const SizedBox(width: 2),
+            AnimatedRotation(
+              turns: _open ? 0.5 : 0,
+              duration: const Duration(milliseconds: 200),
+              child: Icon(
+                Icons.expand_more_rounded,
+                size: 16,
+                color: scheme.surface,
+              ),
+            ),
+          ] else
+            const SizedBox(width: 2),
+        ],
+      ),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        canOpen
+            ? GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => setState(() => _open = !_open),
+                child: chip,
+              )
+            : chip,
+        AnimatedSize(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOut,
+          alignment: Alignment.topLeft,
+          child: !_open
+              ? const SizedBox(width: double.infinity)
+              : Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(top: 8),
+                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                  decoration: BoxDecoration(
+                    color: dark
+                        ? Colors.white.withValues(alpha: 0.04)
+                        : Colors.black.withValues(alpha: 0.035),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        s.t('repeats_between', {
+                          'count': '${message.occurrences}',
+                          'first': _time(repeats.first.time),
+                          'last': _time(repeats.last.time),
+                        }),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (message.occurrences > repeats.length)
+                        Text(
+                          s.t('repeats_latest', {'count': '${repeats.length}'}),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      const SizedBox(height: 6),
+                      for (final repeat in repeats.reversed)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 3),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _time(repeat.time),
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  fontFeatures: tabular,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  repeat.title == message.title &&
+                                          repeat.message == message.message
+                                      ? s.t('same_content')
+                                      : [
+                                          if (repeat.title?.isNotEmpty == true)
+                                            repeat.title!,
+                                          repeat.message,
+                                        ].join(' — '),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: scheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+        ),
+      ],
     );
   }
 }

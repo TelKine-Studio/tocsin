@@ -183,8 +183,19 @@ class PublishMessage
         $raised = $priority > $message->priority->value;
         $now = now();
 
+        // History of the sends, the first one included (its content is
+        // about to be replaced).
+        $repeats = $message->repeats ?? [[
+            'at' => ($message->dispatched_at ?? $message->created_at)->getTimestamp(),
+            'title' => $message->title,
+            'body' => $message->body,
+            'priority' => $message->priority->value,
+        ]];
+        $repeats[] = ['at' => $now->getTimestamp(), 'title' => $data['title'] ?? $message->title, 'body' => $data['body'], 'priority' => $priority];
+
         $message->forceFill([
             'occurrences' => $message->occurrences + 1,
+            'repeats' => array_slice($repeats, -Message::MAX_REPEATS),
             'last_seen_at' => $now,
             // With an explicit key, the latest content wins ("CPU at 97%").
             'title' => $data['title'] ?? $message->title,

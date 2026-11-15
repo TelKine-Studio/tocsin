@@ -302,6 +302,29 @@ class MessageAction {
 }
 
 /// Acknowledgement state of a message that must be acknowledged.
+/// One send merged into a grouped message.
+class MessageRepeat {
+  const MessageRepeat({required this.time, required this.message, this.title});
+
+  final DateTime time;
+  final String? title;
+  final String message;
+
+  factory MessageRepeat.fromJson(Map<String, dynamic> json) => MessageRepeat(
+    time: DateTime.fromMillisecondsSinceEpoch(
+      (json['time'] as num).toInt() * 1000,
+    ),
+    title: json['title'] as String?,
+    message: json['message'] as String? ?? '',
+  );
+
+  Map<String, dynamic> toJson() => {
+    'time': time.millisecondsSinceEpoch ~/ 1000,
+    'title': title,
+    'message': message,
+  };
+}
+
 class MessageAck {
   const MessageAck({
     required this.acknowledged,
@@ -397,6 +420,7 @@ class TopicMessage {
     this.actions = const [],
     this.attachment,
     this.occurrences = 1,
+    this.repeats = const [],
     this.lastSeen,
     this.ack,
     this.icon,
@@ -415,6 +439,10 @@ class TopicMessage {
 
   /// Number of times this (grouped) message was received.
   final int occurrences;
+
+  /// Each send of a grouped message, oldest first (may be empty for
+  /// messages grouped by an older server).
+  final List<MessageRepeat> repeats;
   final DateTime? lastSeen;
   final MessageAck? ack;
 
@@ -480,6 +508,10 @@ class TopicMessage {
           )
         : null,
     occurrences: (json['occurrences'] as num?)?.toInt() ?? 1,
+    repeats: ((json['repeats'] as List?) ?? const [])
+        .whereType<Map>()
+        .map((e) => MessageRepeat.fromJson(e.cast<String, dynamic>()))
+        .toList(),
     icon: json['icon'] as String?,
     lastSeen: json['last_seen'] is num
         ? DateTime.fromMillisecondsSinceEpoch(
@@ -508,6 +540,7 @@ class TopicMessage {
     'actions': actions.map((a) => a.toJson()).toList(),
     'attachment': attachment?.toJson(),
     'occurrences': occurrences,
+    'repeats': repeats.map((r) => r.toJson()).toList(),
     'icon': icon,
     'last_seen': lastSeen == null
         ? null

@@ -35,6 +35,13 @@ class MessageResource extends JsonResource
             ] : null,
             'occurrences' => $this->occurrences ?? 1,
             'last_seen' => $this->last_seen_at?->getTimestamp(),
+            // Each send of a grouped message, oldest first.
+            'repeats' => ($log = $this->repeatLog()) ? array_map(fn (array $repeat) => [
+                'time' => $repeat['time']->getTimestamp(),
+                'title' => $repeat['title'],
+                'message' => $repeat['body'],
+                'priority' => $repeat['priority'],
+            ], $log) : null,
             'ack' => $this->requires_ack ? [
                 'acknowledged' => $this->isAcknowledged(),
                 'by' => $this->acknowledgedByName(),

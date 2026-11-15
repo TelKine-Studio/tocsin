@@ -1,8 +1,10 @@
 @php
     /** @var \App\Models\Message|null $message */
     $priority = $message?->priority?->value ?? 3;
+    $repeats = $message?->repeatLog() ?? [];
+    $repeatTime = fn ($time) => $time->isToday() ? $time->isoFormat('LTS') : $time->isoFormat('D MMM, LTS');
 @endphp
-<article data-message-id="{{ $message?->id }}" data-priority="{{ $priority }}" @if ($message) id="message-{{ $message->id }}" @endif
+<article data-message-id="{{ $message?->id }}" data-priority="{{ $priority }}" @if ($message) id="message-{{ $message->id }}" @endif @if ($repeats) x-data="{ repeats: false }" @endif
     class="scroll-mt-24 group relative flex gap-4 border-t border-zinc-100 px-5 py-4 first:border-0 sm:px-6 dark:border-zinc-800">
     <span class="absolute inset-y-3 left-0 w-1 rounded-r-full bg-transparent group-data-[priority=4]:bg-amber-400 group-data-[priority=5]:bg-red-500"></span>
     <div class="min-w-0 flex-1">
@@ -11,11 +13,43 @@
             <span data-field="priority" @if ($priority === 3) hidden @endif
                 class="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 group-data-[priority=4]:bg-amber-50 group-data-[priority=4]:text-amber-800 group-data-[priority=5]:bg-red-50 group-data-[priority=5]:text-red-700 dark:bg-white/5 dark:text-zinc-300 dark:group-data-[priority=4]:bg-amber-500/10 dark:group-data-[priority=4]:text-amber-300 dark:group-data-[priority=5]:bg-red-500/10 dark:group-data-[priority=5]:text-red-300">{{ $message?->priority?->label() }}</span>
             @if (($message?->occurrences ?? 1) > 1)
-                <span title="{{ __('Received :count times, last :time', ['count' => $message->occurrences, 'time' => $message->last_seen_at?->diffForHumans()]) }}"
-                    class="inline-flex items-center gap-1 rounded-full bg-zinc-900 px-2 py-0.5 text-xs font-semibold text-white tabular-nums dark:bg-white dark:text-zinc-900"><x-ui.icon name="layers" class="size-3" />×{{ $message->occurrences }}</span>
+                @if ($repeats)
+                    <button type="button" @click="repeats = !repeats" :aria-expanded="repeats"
+                        class="inline-flex items-center gap-1 rounded-full bg-zinc-900 py-0.5 pr-1.5 pl-2 text-xs font-semibold text-white tabular-nums transition hover:bg-zinc-700 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200">
+                        <x-ui.icon name="layers" class="size-3" />{{ __('Received :count times', ['count' => $message->occurrences]) }}
+                        <x-ui.icon name="chevron-down" class="size-3 transition" ::class="repeats && 'rotate-180'" />
+                    </button>
+                @else
+                    {{-- Grouped before the history was kept: first and last send only. --}}
+                    <span title="{{ __('Received :count times, last :time', ['count' => $message->occurrences, 'time' => $message->last_seen_at?->diffForHumans()]) }}"
+                        class="inline-flex items-center gap-1 rounded-full bg-zinc-900 px-2 py-0.5 text-xs font-semibold text-white tabular-nums dark:bg-white dark:text-zinc-900"><x-ui.icon name="layers" class="size-3" />{{ __('Received :count times', ['count' => $message->occurrences]) }}</span>
+                @endif
             @endif
         </div>
         <p data-field="message" class="prose-message mt-1">{{ $message?->body }}</p>
+        @if ($repeats)
+            <div x-show="repeats" x-collapse x-cloak>
+                <div class="mt-3 rounded-xl border border-zinc-100 bg-zinc-50/70 px-3.5 py-3 dark:border-zinc-800 dark:bg-white/[.02]">
+                    <p class="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                        {{ __(':count sends between :first and :last', ['count' => $message->occurrences, 'first' => $repeatTime($repeats[0]['time']), 'last' => $repeatTime(end($repeats)['time'])]) }}
+                        @if ($message->occurrences > count($repeats)) · {{ __('the latest :count shown', ['count' => count($repeats)]) }}@endif
+                    </p>
+                    <ol class="mt-2 space-y-1.5 border-l-2 border-zinc-200 pl-3 dark:border-zinc-700">
+                        @foreach (array_reverse($repeats) as $repeat)
+                            @php $changed = $repeat['title'] !== $message->title || $repeat['body'] !== $message->body; @endphp
+                            <li class="text-xs">
+                                <time datetime="{{ $repeat['time']->toIso8601String() }}" title="{{ $repeat['time']->isoFormat('LLLL') }}" class="font-medium text-zinc-700 tabular-nums dark:text-zinc-300">{{ $repeatTime($repeat['time']) }}</time>
+                                @if ($changed)
+                                    <span class="text-zinc-500 dark:text-zinc-400">· {{ \Illuminate\Support\Str::limit(trim(($repeat['title'] ? $repeat['title'].' — ' : '').$repeat['body']), 140) }}</span>
+                                @else
+                                    <span class="text-zinc-400">· {{ __('same content') }}</span>
+                                @endif
+                            </li>
+                        @endforeach
+                    </ol>
+                </div>
+            </div>
+        @endif
         @if ($message && ($attachment = $message->attachmentUrl()))
             @if (str_starts_with((string) $message->attachment_type, 'image/') || preg_match('/\.(png|jpe?g|gif|webp)$/i', (string) $message->attachment_name))
                 <a href="{{ $attachment }}" target="_blank" rel="noopener" class="mt-3 block max-w-sm overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800">

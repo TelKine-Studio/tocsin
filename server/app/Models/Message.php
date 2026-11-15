@@ -11,12 +11,16 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Prunable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 
-#[Fillable(['topic_id', 'user_id', 'title', 'body', 'priority', 'tags', 'click_url', 'actions', 'icon_url', 'attachment_url', 'attachment_name', 'attachment_type', 'attachment_size', 'attachment_path', 'scheduled_at', 'dispatched_at', 'push_status', 'push_failed', 'push_error', 'collapse_key', 'occurrences', 'last_seen_at', 'requires_ack', 'acknowledged_at', 'acknowledged_by', 'acknowledged_name', 'escalation_level', 'next_escalation_at'])]
+#[Fillable(['topic_id', 'user_id', 'title', 'body', 'priority', 'tags', 'click_url', 'actions', 'icon_url', 'attachment_url', 'attachment_name', 'attachment_type', 'attachment_size', 'attachment_path', 'scheduled_at', 'dispatched_at', 'push_status', 'push_failed', 'push_error', 'collapse_key', 'occurrences', 'repeats', 'last_seen_at', 'requires_ack', 'acknowledged_at', 'acknowledged_by', 'acknowledged_name', 'escalation_level', 'next_escalation_at'])]
 class Message extends Model
 {
+    /** Sends kept in the history of a grouped message. */
+    public const MAX_REPEATS = 50;
+
     /** @use HasFactory<MessageFactory> */
     use HasFactory, Prunable;
 
@@ -36,6 +40,7 @@ class Message extends Model
             'scheduled_at' => 'datetime',
             'dispatched_at' => 'datetime',
             'occurrences' => 'integer',
+            'repeats' => 'array',
             'last_seen_at' => 'datetime',
             'requires_ack' => 'boolean',
             'acknowledged_at' => 'datetime',
@@ -179,5 +184,22 @@ class Message extends Model
         return $days > 0
             ? static::where('created_at', '<', now()->subDays($days))
             : static::whereRaw('1 = 0');
+    }
+
+    /**
+     * Sends merged into this message, oldest first (the latest ones when
+     * there were more than Message::MAX_REPEATS). Empty for a single send,
+     * or for messages grouped before the history was kept.
+     *
+     * @return list<array{time: Carbon, title: ?string, body: ?string, priority: int}>
+     */
+    public function repeatLog(): array
+    {
+        return array_map(fn (array $repeat) => [
+            'time' => Carbon::createFromTimestamp($repeat['at']),
+            'title' => $repeat['title'] ?? null,
+            'body' => $repeat['body'] ?? null,
+            'priority' => (int) ($repeat['priority'] ?? 3),
+        ], $this->occurrences > 1 ? ($this->repeats ?? []) : []);
     }
 }
