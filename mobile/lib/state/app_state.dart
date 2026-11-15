@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../models/models.dart';
+import '../services/pairing_link.dart';
 import '../services/icon_cache.dart';
 import '../services/api_client.dart';
 import '../services/push_service.dart';
@@ -241,7 +242,25 @@ class AppState extends ChangeNotifier {
       code: code,
       deviceName: 'Tocsin · ${await push.deviceName()}',
     );
+    await _signIn(server, result);
+  }
 
+  /// Adds the topic of a QR code: signs in with its one-time code (private
+  /// topics), then subscribes. Returns the existing subscription if any.
+  Future<Subscription> pair(PairingLink link) async {
+    final server = await addServer(link.serverUrl);
+    if (link.code != null) {
+      final (result, _) = await ApiClient(server.url).pair(
+        code: link.code!,
+        deviceName: 'Tocsin · ${await push.deviceName()}',
+      );
+      await _signIn(server, result);
+    }
+    return subscriptionFor(server.url, link.topic) ??
+        await subscribe(server.url, link.topic);
+  }
+
+  Future<void> _signIn(Server server, LoginResult result) async {
     await storage.setToken(server.url, result.token);
     await push.saveSharedToken(server.url, result.token);
     server.account = result.account;

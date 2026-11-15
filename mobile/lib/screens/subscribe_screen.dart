@@ -5,7 +5,11 @@ import '../config.dart';
 import '../l10n/strings.dart';
 import '../services/api_client.dart';
 import '../state/app_state.dart';
+import '../navigation.dart';
+import '../services/pairing_link.dart';
 import 'login_sheet.dart';
+import 'pairing.dart';
+import 'scan_screen.dart';
 
 class SubscribeScreen extends StatefulWidget {
   const SubscribeScreen({super.key});
@@ -97,6 +101,20 @@ class _SubscribeScreenState extends State<SubscribeScreen> {
       ),
     );
     Navigator.of(context).pop();
+  }
+
+  /// Scans the "Add on mobile" QR code of a topic page.
+  Future<void> _scan() async {
+    final link = await Navigator.of(context).push<PairingLink>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => const ScanScreen(),
+      ),
+    );
+    if (link == null || !mounted) return;
+    Navigator.of(context).pop();
+    final root = navigatorKey.currentContext;
+    if (root != null && root.mounted) await pairAndOpen(root, link);
   }
 
   void _showError(SubscribeException e) {
@@ -301,6 +319,26 @@ class _SubscribeScreenState extends State<SubscribeScreen> {
                       )
                     : const Icon(Icons.notifications_active_outlined),
                 label: Text(s.t('subscribe')),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: _busy ? null : _scan,
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(52),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                icon: const Icon(Icons.qr_code_scanner_rounded),
+                label: Text(s.t('scan_qr')),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                s.t('scan_qr_hint'),
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),

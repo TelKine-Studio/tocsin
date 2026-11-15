@@ -21,6 +21,11 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         ->middleware('throttle:login')
         ->name('auth.token');
 
+    // One-time code of the "add on mobile" QR code.
+    Route::post('auth/pair', [AuthTokenController::class, 'pair'])
+        ->middleware('throttle:login')
+        ->name('auth.pair');
+
     Route::middleware(['auth:sanctum', EnsureUserIsActive::class])->group(function () {
         Route::delete('auth/token', [AuthTokenController::class, 'destroy'])->name('auth.logout');
         Route::get('me', [AuthTokenController::class, 'me'])->name('me');

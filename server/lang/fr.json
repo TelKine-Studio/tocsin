@@ -1090,5 +1090,18 @@
     "or drop it here": "ou déposez-le ici",
     "Choose the JSON file": "Choisir le fichier JSON",
     "Choose a date": "Choisir une date",
-    "Choose a date and time": "Choisir une date et une heure"
+    "Choose a date and time": "Choisir une date et une heure",
+    "Add on mobile": "Ajouter sur mobile",
+    "Add to Tocsin": "Ajouter à Tocsin",
+    "Add #:topic to Tocsin": "Ajouter #:topic à Tocsin",
+    "Open this link in the Tocsin app on your phone to subscribe to the topic.": "Ouvrez ce lien dans l’application Tocsin de votre téléphone pour vous abonner au topic.",
+    "Open in Tocsin": "Ouvrir dans Tocsin",
+    "This link also signs the app in to the account that created it. It works once and expires after :minutes minutes.": "Ce lien connecte aussi l’application au compte qui l’a créé. Il ne fonctionne qu’une fois et expire au bout de :minutes minutes.",
+    "No app yet? Install Tocsin from the App Store or Google Play, then scan the QR code again from the app (Subscribe → Scan).": "Pas encore l’application ? Installez Tocsin depuis l’App Store ou Google Play, puis scannez à nouveau le QR code depuis l’application (S’abonner → Scanner).",
+    "Scan it with the camera of your phone, or in the Tocsin app (Subscribe → Scan).": "Scannez-le avec l’appareil photo de votre téléphone, ou dans l’application Tocsin (S’abonner → Scanner).",
+    "Signs the app in to your account: do not share it.": "Connecte l’application à votre compte : ne le partagez pas.",
+    "Expires in": "Expire dans",
+    "Show a new code": "Afficher un nouveau code",
+    "Try again": "Réessayer",
+    "This QR code has expired. Show a new one on the topic page.": "Ce QR code a expiré. Affichez-en un nouveau sur la page du topic."
 }

@@ -4,7 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
+import 'package:app_links/app_links.dart';
+
 import 'l10n/strings.dart';
+import 'navigation.dart';
+import 'screens/pairing.dart';
+import 'services/pairing_link.dart';
 import 'models/models.dart';
 import 'screens/app_shell.dart';
 import 'services/action_runner.dart';
@@ -12,8 +17,6 @@ import 'screens/topic_screen.dart';
 import 'services/push_service.dart';
 import 'state/app_state.dart';
 import 'theme.dart';
-
-final navigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,6 +28,19 @@ Future<void> main() async {
   PushService.instance.taps.listen((payload) => _openFromPush(state, payload));
 
   runApp(TocsinApp(state: state));
+
+  // "Add on mobile" QR codes opened by the camera (tocsin://pair?url=…).
+  // The stream also delivers the link that launched the app.
+  String? lastLink;
+  AppLinks().uriLinkStream.listen((uri) {
+    final link = PairingLink.parse(uri.toString());
+    if (link == null || uri.toString() == lastLink) return;
+    lastLink = uri.toString();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final context = navigatorKey.currentContext;
+      if (context != null) unawaited(pairAndOpen(context, link));
+    });
+  });
 
   final initial = await PushService.instance.initialNotification();
   if (initial != null) {

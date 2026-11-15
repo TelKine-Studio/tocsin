@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
 use App\Models\User;
 use App\Support\Audit;
+use App\Support\Pairing;
 use App\Support\TwoFactor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -60,6 +61,35 @@ class AuthTokenController extends Controller
         return response()->json([
             'token' => $token->plainTextToken,
             'user' => new UserResource($user),
+        ], 201);
+    }
+
+    /**
+     * Exchange the one-time code of a QR code for a personal access token.
+     */
+    public function pair(Request $request, Pairing $pairing): JsonResponse
+    {
+        $data = $request->validate([
+            'code' => ['required', 'string', 'max:100'],
+            'device_name' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        $pairingData = $pairing->consume($data['code']);
+        $user = $pairingData ? User::find($pairingData['user_id']) : null;
+
+        if (! $user || ! $user->is_active) {
+            throw ValidationException::withMessages(['code' => __('This QR code has expired. Show a new one on the topic page.')]);
+        }
+
+        $user->forceFill(['last_login_at' => now()])->save();
+        Audit::log('auth.login', $user, ['api' => true, 'qr_code' => true, 'device' => $data['device_name'] ?? null], $user);
+
+        $token = $user->createToken($data['device_name'] ?? 'Mobile app');
+
+        return response()->json([
+            'token' => $token->plainTextToken,
+            'user' => new UserResource($user),
+            'topic' => $pairingData['topic'],
         ], 201);
     }
 

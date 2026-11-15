@@ -74,6 +74,16 @@ class S {
     'server_actions': 'Server',
     'settings': 'Settings',
     'servers': 'Servers & accounts',
+    'scan_qr': 'Scan a QR code',
+    'scan_qr_hint': 'On the topic page of the server: “Add on mobile”. Private topics sign the app in automatically.',
+    'scan_hint':
+        'Point at the QR code shown by “Add on mobile” on the topic page.',
+    'qr_invalid': 'This QR code is not a Tocsin link.',
+    'qr_adding': 'Adding the topic…',
+    'qr_failed':
+        'The topic could not be added. Check your connection and try again.',
+    'qr_login_required': 'This topic is private: show the QR code again from your account on the server.',
+    'camera_denied': 'Allow camera access in Settings to scan a QR code.',
     'servers_hint':
         'Private topics of a server use the account signed in on that server.',
     'not_signed_in': 'Not signed in',
@@ -180,6 +190,15 @@ class S {
     'server_actions': 'Serveur',
     'settings': 'Paramètres',
     'servers': 'Serveurs et comptes',
+    'scan_qr': 'Scanner un QR code',
+    'scan_qr_hint': 'Sur la page du topic, côté serveur : « Ajouter sur mobile ». Les topics privés connectent l’app automatiquement.',
+    'scan_hint': 'Visez le QR code affiché par « Ajouter sur mobile » sur la page du topic.',
+    'qr_invalid': 'Ce QR code n’est pas un lien Tocsin.',
+    'qr_adding': 'Ajout du topic…',
+    'qr_failed':
+        'Impossible d’ajouter le topic. Vérifiez votre connexion et réessayez.',
+    'qr_login_required': 'Ce topic est privé : affichez à nouveau le QR code depuis votre compte sur le serveur.',
+    'camera_denied': 'Autorisez l’accès à l’appareil photo dans Réglages pour scanner un QR code.',
     'servers_hint': 'Les topics privés d’un serveur utilisent le compte connecté sur ce serveur.',
     'not_signed_in': 'Non connecté',
     'signed_in_as': 'Connecté en tant que :name',

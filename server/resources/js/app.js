@@ -120,6 +120,55 @@ Alpine.data('composer', (topicLabel) => ({
 
 /* ---------------------------------------------- Browser notifications */
 
+Alpine.data('pairing', (url) => ({
+    svg: null,
+    signsIn: false,
+    expiresAt: null,
+    remaining: '',
+    expired: false,
+    loading: false,
+    error: false,
+    timer: null,
+
+    async load() {
+        clearInterval(this.timer);
+        Object.assign(this, { svg: null, loading: true, error: false, expired: false });
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                },
+            });
+            if (!response.ok) throw new Error(response.status);
+            const data = await response.json();
+            this.svg = data.svg;
+            this.signsIn = data.signs_in;
+            this.expiresAt = data.expires_at ? new Date(data.expires_at) : null;
+            this.countdown();
+        } catch {
+            this.error = true;
+        } finally {
+            this.loading = false;
+        }
+    },
+
+    countdown() {
+        if (!this.expiresAt) return;
+        const update = () => {
+            const seconds = Math.max(0, Math.round((this.expiresAt - Date.now()) / 1000));
+            this.remaining = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+            if (seconds === 0) {
+                this.expired = true;
+                clearInterval(this.timer);
+            }
+        };
+        update();
+        this.timer = setInterval(update, 1000);
+    },
+}));
+
 Alpine.data('webPush', (topic, updateUrl) => ({
     supported: 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window,
     enabled: false,

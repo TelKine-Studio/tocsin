@@ -19,9 +19,9 @@
     </nav>
 
     <section class="card mb-6 p-5 sm:p-6">
-        <div class="flex flex-col gap-5 sm:flex-row sm:items-start">
+        <div class="flex flex-wrap items-start gap-x-5 gap-y-4">
             <x-ui.topic-avatar :topic="$topic" size="lg" />
-            <div class="min-w-0 flex-1">
+            <div class="min-w-[14rem] flex-1">
                 <div class="flex flex-wrap items-center gap-2">
                     <h1 class="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-white">{{ $topic->label() }}</h1>
                     <x-ui.badge :color="$topic->isPublic() ? 'blue' : 'zinc'" :icon="$topic->isPublic() ? 'globe' : 'lock'">{{ $topic->visibility->label() }}</x-ui.badge>
@@ -37,7 +37,7 @@
                     <p class="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">{{ $topic->description }}</p>
                 @endif
             </div>
-            <div class="flex shrink-0 items-center gap-2">
+            <div class="flex flex-wrap items-center gap-2">
                 <div x-data="webPush(@js($topic->name), @js(route('topics.web-push', $topic)))" x-show="supported" x-cloak>
                     <button type="button" @click="toggle()" :disabled="busy || denied"
                         class="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold shadow-xs transition disabled:opacity-60"
@@ -47,6 +47,7 @@
                         <span x-text="enabled ? @js(__('Browser notified')) : @js(__('Notify this browser'))">{{ __('Notify this browser') }}</span>
                     </button>
                 </div>
+                <x-ui.button variant="secondary" type="button" icon="qr-code" x-data x-on:click="$dispatch('open-modal', 'pair-mobile')">{{ __('Add on mobile') }}</x-ui.button>
                 @if ($canManage)
                     <x-ui.button variant="secondary" :href="route('topics.edit', $topic)" icon="settings">{{ __('Settings') }}</x-ui.button>
                 @endif
@@ -67,10 +68,10 @@
     </section>
 
     <div x-data="{ tab: ['messages','integrate','access'].includes(location.hash.slice(1)) ? location.hash.slice(1) : @js($errors->has('email') ? 'access' : 'messages') }" x-init="$watch('tab', value => history.replaceState(null, '', '#' + value))">
-        <div class="mb-6 flex gap-1 overflow-x-auto border-b border-zinc-200 dark:border-zinc-800">
+        <div class="mb-6 flex gap-1 overflow-x-auto overflow-y-hidden shadow-[inset_0_-1px_0_var(--color-zinc-200)] [scrollbar-width:none] dark:shadow-[inset_0_-1px_0_var(--color-zinc-800)]">
             @foreach ($tabs as $key => $item)
                 <button type="button" @click="tab = '{{ $key }}'"
-                    class="-mb-px inline-flex items-center gap-2 border-b-2 px-3.5 py-3 text-sm font-medium whitespace-nowrap transition"
+                    class="inline-flex items-center gap-2 border-b-2 px-3.5 py-3 text-sm font-medium whitespace-nowrap transition"
                     :class="tab === '{{ $key }}' ? 'border-zinc-900 text-zinc-900 dark:border-white dark:text-white' : 'border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'">
                     <x-ui.icon :name="$item['icon']" class="size-4" />{{ $item['label'] }}
                 </button>
@@ -347,4 +348,26 @@
             </div>
         @endif
     </div>
+    <x-ui.modal name="pair-mobile" :title="__('Add on mobile')" max-width="max-w-sm">
+        <div x-data="pairing(@js(route('topics.pairing', $topic)))" x-on:open-modal.window="if ($event.detail === 'pair-mobile') load()" class="text-center">
+            <div class="mx-auto grid size-56 place-items-center rounded-2xl border border-zinc-200 bg-white p-3 dark:border-zinc-700">
+                <div x-show="svg && !expired" x-html="svg" class="size-full [&_svg]:size-full"></div>
+                <x-ui.icon name="qr-code" class="size-10 animate-pulse text-zinc-300" x-show="loading" />
+                <button type="button" x-show="expired || error" x-cloak @click="load()" class="flex flex-col items-center gap-2 text-sm font-semibold text-brand-600">
+                    <x-ui.icon name="refresh" class="size-6" />
+                    <span x-text="error ? @js(__('Try again')) : @js(__('Show a new code'))"></span>
+                </button>
+            </div>
+            <p class="mt-4 text-sm text-zinc-600 dark:text-zinc-400">{{ __('Scan it with the camera of your phone, or in the Tocsin app (Subscribe → Scan).') }}</p>
+            <template x-if="signsIn">
+                <p class="mt-3 flex gap-2 rounded-xl bg-amber-50 p-3 text-left text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
+                    <x-ui.icon name="lock" class="mt-0.5 size-3.5 shrink-0" />
+                    <span>
+                        {{ __('Signs the app in to your account: do not share it.') }}
+                        <span x-show="!expired">{{ __('Expires in') }} <strong x-text="remaining"></strong>.</span>
+                    </span>
+                </p>
+            </template>
+        </div>
+    </x-ui.modal>
 </x-layouts.app>

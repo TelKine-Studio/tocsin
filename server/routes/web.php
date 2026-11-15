@@ -15,6 +15,7 @@ use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\SsoController;
 use App\Http\Controllers\Auth\TwoFactorController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\PairingController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SetupController;
 use App\Http\Controllers\TopicController;
@@ -27,6 +28,9 @@ use App\Http\Middleware\RequireTwoFactor;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/dashboard');
+
+// Link of the "add on mobile" QR code (opened by the phone's camera).
+Route::get('m/{topic}', [PairingController::class, 'show'])->name('pairing.show');
 
 // First-run setup (only reachable while no user exists).
 Route::get('setup', [SetupController::class, 'show'])->name('setup.show');
@@ -79,6 +83,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('topics/{topic}/messages/{message}', [TopicMessageController::class, 'destroy'])
         ->scopeBindings()
         ->name('topics.messages.destroy');
+    Route::post('topics/{topic}/pairing', [PairingController::class, 'store'])->middleware('throttle:30,1')->name('topics.pairing');
     Route::put('topics/{topic}/web-push', [WebPushController::class, 'update'])->name('topics.web-push');
     Route::post('web-push/status', [WebPushController::class, 'status'])->name('web-push.status');
     Route::post('topics/{topic}/webhooks', [WebhookController::class, 'store'])->name('topics.webhooks.store');

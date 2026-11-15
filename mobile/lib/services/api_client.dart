@@ -110,6 +110,29 @@ class ApiClient {
     );
   }
 
+  /// Exchanges the one-time code of a QR code for a token; also returns
+  /// the topic it was generated for.
+  Future<(LoginResult, String)> pair({
+    required String code,
+    required String deviceName,
+  }) async {
+    final json = await _send(
+      () => _client.post(
+        _uri('auth/pair'),
+        headers: {..._headers, 'Content-Type': 'application/json'},
+        body: jsonEncode({'code': code, 'device_name': deviceName}),
+      ),
+    );
+
+    return (
+      LoginResult(
+        json['token'] as String,
+        Account.fromJson((json['user'] as Map).cast<String, dynamic>()),
+      ),
+      json['topic'] as String,
+    );
+  }
+
   Future<void> logout() async {
     await _send(() => _client.delete(_uri('auth/token'), headers: _headers));
   }
