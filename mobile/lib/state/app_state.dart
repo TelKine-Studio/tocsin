@@ -127,6 +127,49 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Deletes a message from this device (it stays on the server).
+  Future<void> deleteMessage(String subscriptionId, int messageId) async {
+    final subscription = this.subscription(subscriptionId);
+    if (subscription == null) return;
+
+    await storage.hideMessages(subscriptionId, ids: [messageId]);
+    final remaining = (await storage.loadMessages(subscriptionId))
+        .where((m) => m.id != messageId)
+        .toList();
+    await storage.replaceMessages(subscriptionId, remaining);
+    _messages[subscriptionId] = remaining;
+
+    final newest = remaining.isEmpty ? null : remaining.first;
+    subscription.lastPreview = newest == null
+        ? null
+        : (newest.title?.isNotEmpty == true ? newest.title : newest.message);
+    await storage.saveSubscriptions(subscriptions);
+    notifyListeners();
+  }
+
+  /// Clears every message of a topic on this device (they stay on the
+  /// server; new ones keep arriving).
+  Future<void> clearMessages(String subscriptionId) async {
+    final subscription = this.subscription(subscriptionId);
+    if (subscription == null) return;
+
+    final known = await storage.loadMessages(subscriptionId);
+    final upTo = [
+      subscription.lastMessageId,
+      ...known.map((m) => m.id),
+    ].reduce((a, b) => a > b ? a : b);
+    await storage.hideMessages(subscriptionId, upTo: upTo);
+    await storage.replaceMessages(subscriptionId, const []);
+    _messages[subscriptionId] = const [];
+
+    subscription
+      ..lastPreview = null
+      ..unread = 0;
+    await storage.saveSubscriptions(subscriptions);
+    unawaited(push.removeDelivered(subscription.topic));
+    notifyListeners();
+  }
+
   /// Asks for the notification permission and registers with APNs.
   Future<bool> enablePush() async {
     final granted = await push.register();

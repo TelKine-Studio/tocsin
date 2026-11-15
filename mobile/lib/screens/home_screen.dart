@@ -36,7 +36,26 @@ class HomeScreen extends StatelessWidget {
                 child: CustomScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   slivers: [
-                    LargeTitleBar(title: s.t('subscriptions')),
+                    LargeTitleBar(
+                      title: s.t('subscriptions'),
+                      actions: [
+                        if (subscriptions.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 12),
+                            child: IconButton.filled(
+                              tooltip: s.t('subscribe'),
+                              onPressed: () => _openSubscribe(context),
+                              style: IconButton.styleFrom(
+                                backgroundColor: theme.colorScheme.primary,
+                                foregroundColor: theme.colorScheme.onPrimary,
+                                fixedSize: const Size(38, 38),
+                                minimumSize: const Size(38, 38),
+                              ),
+                              icon: const Icon(Icons.add_rounded, size: 24),
+                            ),
+                          ),
+                      ],
+                    ),
                     if (subscriptions.isEmpty)
                       SliverFillRemaining(
                         hasScrollBody: false,

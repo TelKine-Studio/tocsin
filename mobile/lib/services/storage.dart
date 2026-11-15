@@ -74,6 +74,12 @@ class Storage {
     String subscriptionId,
     List<TopicMessage> incoming,
   ) async {
+    // Messages deleted on this device are not brought back by a sync.
+    final hidden = await _hidden(subscriptionId);
+    incoming = incoming
+        .where((m) => m.id > hidden.upTo && !hidden.ids.contains(m.id))
+        .toList();
+
     final existing = await loadMessages(subscriptionId);
     final known = existing.map((m) => m.id).toSet();
     final fresh = incoming.where((m) => !known.contains(m.id)).toList();
@@ -120,7 +126,35 @@ class Storage {
   }
 
   Future<void> deleteMessages(String subscriptionId) async {
-    await (await _prefs()).remove(_messagesKey(subscriptionId));
+    final prefs = await _prefs();
+    await prefs.remove(_messagesKey(subscriptionId));
+    await prefs.remove(_hiddenKey(subscriptionId));
+  }
+
+  /// Hides messages on this device: every message up to [upTo] (clearing
+  /// the topic) and the given [ids] (deleted one by one).
+  Future<void> hideMessages(
+    String subscriptionId, {
+    int? upTo,
+    Iterable<int> ids = const [],
+  }) async {
+    final hidden = await _hidden(subscriptionId);
+    final newUpTo = upTo != null && upTo > hidden.upTo ? upTo : hidden.upTo;
+    final newIds = {...hidden.ids, ...ids}.where((id) => id > newUpTo).toList();
+    await (await _prefs()).setString(
+      _hiddenKey(subscriptionId),
+      jsonEncode({'up_to': newUpTo, 'ids': newIds}),
+    );
+  }
+
+  Future<({int upTo, Set<int> ids})> _hidden(String subscriptionId) async {
+    final raw = (await _prefs()).getString(_hiddenKey(subscriptionId));
+    if (raw == null) return (upTo: 0, ids: <int>{});
+    final json = (jsonDecode(raw) as Map).cast<String, dynamic>();
+    return (
+      upTo: json['up_to'] as int? ?? 0,
+      ids: {for (final id in json['ids'] as List? ?? const []) id as int},
+    );
   }
 
   Future<String?> lastServerUrl() async =>
@@ -141,6 +175,8 @@ class Storage {
   }
 
   String _messagesKey(String subscriptionId) => 'messages:$subscriptionId';
+
+  String _hiddenKey(String subscriptionId) => 'hidden:$subscriptionId';
 
   String _tokenKey(String serverUrl) => 'token:$serverUrl';
 }

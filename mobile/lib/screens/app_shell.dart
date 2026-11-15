@@ -1,16 +1,12 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
 import '../l10n/strings.dart';
-import '../state/app_state.dart';
 import 'home_screen.dart';
 import 'settings_screen.dart';
-import 'subscribe_screen.dart';
 
-/// Main screens behind a floating tab bar, with the subscribe button next
-/// to it on the topics tab.
+/// Main screens behind a floating tab bar.
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
 
@@ -24,9 +20,6 @@ class _AppShellState extends State<AppShell> {
   @override
   Widget build(BuildContext context) {
     final s = S.of(context);
-    final state = context.watch<AppState>();
-    final showAdd =
-        _tab == 0 && !state.loading && state.subscriptions.isNotEmpty;
 
     return Scaffold(
       extendBody: true,
@@ -37,35 +30,14 @@ class _AppShellState extends State<AppShell> {
       bottomNavigationBar: SafeArea(
         top: false,
         minimum: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-        child: SizedBox(
-          height: 64,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              _TabBar(
-                index: _tab,
-                onSelect: (index) => setState(() => _tab = index),
-                items: [
-                  (Icons.notifications_rounded, s.t('topics_label')),
-                  (Icons.settings_rounded, s.t('settings')),
-                ],
-              ),
-              Positioned(
-                right: 0,
-                child: AnimatedScale(
-                  scale: showAdd ? 1 : 0,
-                  duration: const Duration(milliseconds: 180),
-                  curve: Curves.easeOut,
-                  child: _AddButton(
-                    tooltip: s.t('subscribe'),
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const SubscribeScreen(),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+        child: Center(
+          heightFactor: 1,
+          child: _TabBar(
+            index: _tab,
+            onSelect: (index) => setState(() => _tab = index),
+            items: [
+              (Icons.notifications_rounded, s.t('topics_label')),
+              (Icons.settings_rounded, s.t('settings')),
             ],
           ),
         ),
@@ -193,40 +165,6 @@ class _TabItem extends StatelessWidget {
                   ),
                 ),
               ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _AddButton extends StatelessWidget {
-  const _AddButton({required this.tooltip, required this.onPressed});
-
-  final String tooltip;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Tooltip(
-      message: tooltip,
-      child: Material(
-        color: theme.colorScheme.primary,
-        shape: const CircleBorder(),
-        elevation: 4,
-        shadowColor: theme.colorScheme.primary.withValues(alpha: 0.5),
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: onPressed,
-          child: SizedBox(
-            width: 60,
-            height: 60,
-            child: Icon(
-              Icons.add_rounded,
-              size: 30,
-              color: theme.colorScheme.onPrimary,
             ),
           ),
         ),

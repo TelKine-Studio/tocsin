@@ -33,19 +33,25 @@ class IconCache {
   /// Loads the logo from disk, or from the network when [network] is true.
   static Future<ImageProvider?> load(String url, {bool network = true}) {
     if (_images[url] case final image?) return Future.value(image);
-    return _loading[url] ??= _load(
-      url,
-      network,
-    ).whenComplete(() => _loading.remove(url));
+    return _loading[url] ??= _load(url, network).whenComplete(() {
+      // A block, not an arrow: returning the removed future (this very
+      // future) would make it wait for itself forever.
+      _loading.remove(url);
+    });
   }
 
-  /// Decodes the logos already on disk; called before the first screen.
+  /// Reads the logos already on disk and decodes them, so the first frame
+  /// paints them. Bounded in time: a slow disk only delays the logos.
   static Future<void> warm(Iterable<String> urls) async {
     try {
-      await Future.wait(urls.toSet().map((url) => load(url, network: false)))
-          .timeout(const Duration(milliseconds: 800));
+      await Future.wait(
+        urls.toSet().map((url) async {
+          final image = await load(url, network: false);
+          if (image != null) await _decode(image);
+        }),
+      ).timeout(const Duration(milliseconds: 800));
     } catch (_) {
-      // A slow disk only delays the logos, never the app.
+      // Painting decodes them anyway.
     }
   }
 
@@ -67,17 +73,22 @@ class IconCache {
       }
       if (bytes == null || bytes.isEmpty) return null;
 
-      final image = MemoryImage(
+      return _images[url] = MemoryImage(
         bytes is Uint8List ? bytes : Uint8List.fromList(bytes),
       );
-      if (!await _decode(image)) {
-        if (await file.exists()) await file.delete();
-        return null;
-      }
-      return _images[url] = image;
     } catch (_) {
       return null;
     }
+  }
+
+  /// Forgets a logo that cannot be decoded, to download it again.
+  static Future<void> evict(String url) async {
+    _images.remove(url);
+    try {
+      await _ensureDir();
+      final file = File('${_dir!.path}/${_key(url)}');
+      if (await file.exists()) await file.delete();
+    } catch (_) {}
   }
 
   /// Decodes into Flutter's image cache, so the first paint is synchronous.
@@ -96,7 +107,10 @@ class IconCache {
       },
     );
     stream.addListener(listener);
-    return done.future;
+    return done.future.timeout(
+      const Duration(seconds: 2),
+      onTimeout: () => false,
+    );
   }
 
   /// Stable file name for a URL (FNV-1a 64 bits).

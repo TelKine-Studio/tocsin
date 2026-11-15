@@ -57,7 +57,14 @@ class _TopicLogoState extends State<_TopicLogo> {
       height: widget.size,
       fit: BoxFit.cover,
       gaplessPlayback: true,
-      errorBuilder: (_, _, _) => widget.fallback,
+      // Already decoded at launch: painted at once. Otherwise the initial
+      // stays until the first frame.
+      frameBuilder: (context, child, frame, sync) =>
+          frame == null && !sync ? widget.fallback : child,
+      errorBuilder: (_, _, _) {
+        IconCache.evict(widget.url);
+        return widget.fallback;
+      },
     );
   }
 }

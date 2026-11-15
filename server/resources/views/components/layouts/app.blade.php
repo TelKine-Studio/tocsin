@@ -41,11 +41,12 @@
                     </form>
 
                     <div class="ml-auto flex items-center gap-2">
-                        @can('create', App\Models\Topic::class)
+                        {{-- Not on the topics pages, which have their own button. --}}
+                        @if (! request()->routeIs('topics.index', 'topics.create') && auth()->user()->can('create', App\Models\Topic::class))
                             <x-ui.button :href="route('topics.create')" icon="plus" size="sm" variant="dark" class="py-2">
                                 <span class="hidden sm:inline">{{ __('New topic') }}</span>
                             </x-ui.button>
-                        @endcan
+                        @endif
                     </div>
                 </div>
             </header>

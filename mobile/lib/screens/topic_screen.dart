@@ -122,6 +122,7 @@ class _TopicScreenState extends State<TopicScreen> {
                   icon: Icons.inbox_outlined,
                   title: s.t('no_messages'),
                   message: s.t('no_messages_hint'),
+                  action: _SendExample(subscription: subscription),
                 ),
               )
             else
@@ -151,9 +152,35 @@ class _TopicScreenState extends State<TopicScreen> {
                                 ? const Color(0xFF27272A)
                                 : const Color(0xFFE7E5E4),
                           ),
-                        _MessageCard(
-                          message: message,
-                          subscriptionId: widget.subscriptionId,
+                        // Swipe left to delete from this device.
+                        Dismissible(
+                          key: ValueKey('message-${message.id}'),
+                          direction: DismissDirection.endToStart,
+                          background: Container(
+                            alignment: AlignmentDirectional.centerEnd,
+                            padding: const EdgeInsetsDirectional.only(end: 24),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.error,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: const Icon(
+                              Icons.delete_outline_rounded,
+                              color: Colors.white,
+                            ),
+                          ),
+                          onDismissed: (_) {
+                            context.read<AppState>().deleteMessage(
+                              widget.subscriptionId,
+                              message.id,
+                            );
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(s.t('message_deleted'))),
+                            );
+                          },
+                          child: _MessageCard(
+                            message: message,
+                            subscriptionId: widget.subscriptionId,
+                          ),
                         ),
                       ],
                     );
@@ -203,6 +230,13 @@ class _TopicScreenState extends State<TopicScreen> {
               label: s.t('copy_topic'),
               icon: Icons.copy_rounded,
             ),
+            if (state.messages(subscription.id).isNotEmpty)
+              SheetAction(
+                value: 'clear',
+                label: s.t('clear_messages'),
+                icon: Icons.delete_sweep_outlined,
+                destructive: true,
+              ),
             SheetAction(
               value: 'unsubscribe',
               label: s.t('unsubscribe'),
@@ -218,6 +252,22 @@ class _TopicScreenState extends State<TopicScreen> {
           case 'copy':
             await Clipboard.setData(ClipboardData(text: subscription.topic));
             messenger.showSnackBar(SnackBar(content: Text(s.t('copied'))));
+          case 'clear':
+            if (!context.mounted) return;
+            final confirmed = await showConfirmSheet(
+              context,
+              title: s.t('clear_messages'),
+              message: s.t('clear_messages_confirm', {
+                'topic': subscription.displayName,
+              }),
+              confirmLabel: s.t('clear_messages'),
+            );
+            if (confirmed) {
+              await state.clearMessages(subscription.id);
+              messenger.showSnackBar(
+                SnackBar(content: Text(s.t('messages_cleared'))),
+              );
+            }
           case 'unsubscribe':
             await _confirmUnsubscribe(subscription);
         }
@@ -898,6 +948,107 @@ class _AckDone extends StatelessWidget {
               color: color,
               fontWeight: FontWeight.w600,
             ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// How to publish a first message: a curl command for this topic, copied
+/// on tap.
+class _SendExample extends StatefulWidget {
+  const _SendExample({required this.subscription});
+
+  final Subscription subscription;
+
+  @override
+  State<_SendExample> createState() => _SendExampleState();
+}
+
+class _SendExampleState extends State<_SendExample> {
+  bool _copied = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S.of(context);
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    final subscription = widget.subscription;
+    final url = '${subscription.serverUrl}/${subscription.topic}';
+    final command = [
+      'curl',
+      if (!subscription.isPublic)
+        '-H "Authorization: Bearer ${s.t('token_placeholder')}"',
+      '-d "${s.t('example_message')}"',
+      url,
+    ].join(' ');
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(
+            s.t('send_example'),
+            style: theme.textTheme.labelLarge?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        Material(
+          color: dark ? const Color(0xFF1C1C1F) : Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(18),
+            onTap: () async {
+              await Clipboard.setData(ClipboardData(text: command));
+              if (!mounted) return;
+              setState(() => _copied = true);
+              Future.delayed(const Duration(seconds: 2), () {
+                if (mounted) setState(() => _copied = false);
+              });
+            },
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      '\$ $command',
+                      style: TextStyle(
+                        fontFamily: 'Menlo',
+                        fontFamilyFallback: const ['monospace', 'Courier'],
+                        fontSize: 13,
+                        height: 1.45,
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Icon(
+                    _copied ? Icons.check_rounded : Icons.copy_rounded,
+                    size: 18,
+                    color: _copied
+                        ? const Color(0xFF10B981)
+                        : theme.colorScheme.onSurfaceVariant,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          subscription.isPublic
+              ? s.t('send_example_hint')
+              : s.t('send_example_private_hint'),
+          textAlign: TextAlign.center,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            height: 1.4,
           ),
         ),
       ],
