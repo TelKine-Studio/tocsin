@@ -214,7 +214,7 @@
                             <x-ui.badge color="green" icon="check">{{ json_decode($settings->get('fcm.service_account'), true)['project_id'] ?? '' }}</x-ui.badge>
                         @endif
                     </x-slot:actions>
-                    <x-ui.input name="service_account" type="file" accept=".json,application/json" :label="__('Service account (JSON)')" required class="[&_input]:py-2" />
+                    <x-ui.file name="service_account" accept=".json,application/json" :label="__('Service account (JSON)')" :placeholder="__('Choose the JSON file')" required />
                     <x-slot:footer><x-ui.button>{{ __('Save') }}</x-ui.button></x-slot:footer>
                 </x-ui.card>
             </form>

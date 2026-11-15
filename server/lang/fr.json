@@ -1085,5 +1085,10 @@
     "Your payment is being confirmed. This page will show your new plan as soon as the payment provider confirms it.": "Votre paiement est en cours de confirmation. Cette page affichera votre nouvelle offre dès que le prestataire de paiement l'aura confirmé.",
     "Your plan allows :count topics. Delete one or upgrade to create more.": "Votre offre permet :count topics. Supprimez-en un ou passez à une offre supérieure pour en créer davantage.",
     "iPhone, Android and browsers": "iPhone, Android et navigateurs",
-    "messages": "messages"
+    "messages": "messages",
+    "Choose a file": "Choisir un fichier",
+    "or drop it here": "ou déposez-le ici",
+    "Choose the JSON file": "Choisir le fichier JSON",
+    "Choose a date": "Choisir une date",
+    "Choose a date and time": "Choisir une date et une heure"
 }

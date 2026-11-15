@@ -67,6 +67,42 @@
     ::selection {
         @apply bg-brand-200 text-brand-950;
     }
+
+    /* Custom checkboxes and radios (toggles and chips use hidden inputs). */
+    input[type='checkbox']:not(.sr-only),
+    input[type='radio']:not(.sr-only) {
+        @apply inline-grid size-[1.125rem] shrink-0 cursor-pointer appearance-none place-content-center border border-zinc-300 bg-white align-middle transition focus-visible:ring-4 focus-visible:ring-brand-500/20 focus-visible:outline-none dark:border-zinc-600 dark:bg-zinc-900;
+    }
+
+    input[type='checkbox']:not(.sr-only) {
+        @apply rounded-[6px];
+    }
+
+    input[type='radio']:not(.sr-only) {
+        @apply rounded-full;
+    }
+
+    input[type='checkbox']:not(.sr-only):checked {
+        @apply border-brand-600 bg-brand-600;
+        background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M4 8.5l2.5 2.5L12 5.5' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3e%3c/svg%3e");
+        background-size: 100% 100%;
+    }
+
+    input[type='radio']:not(.sr-only):checked {
+        @apply border-brand-600 border-[5px] bg-white dark:bg-zinc-900;
+    }
+
+    /* Number fields without the browser's spin buttons. */
+    input[type='number'] {
+        -moz-appearance: textfield;
+        appearance: textfield;
+    }
+
+    input[type='number']::-webkit-inner-spin-button,
+    input[type='number']::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
 }
 
 @layer components {
@@ -111,3 +147,91 @@
         background-size: 18px 18px;
     }
 }
+
+/* ------------------------------------------------ Date picker (flatpickr) */
+
+.flatpickr-calendar {
+    @apply rounded-2xl border border-zinc-200 bg-white p-1 font-sans shadow-(--shadow-lift) dark:border-zinc-800 dark:bg-zinc-900;
+    width: 19rem;
+}
+
+.flatpickr-calendar.arrowTop::before,
+.flatpickr-calendar.arrowTop::after,
+.flatpickr-calendar.arrowBottom::before,
+.flatpickr-calendar.arrowBottom::after {
+    display: none;
+}
+
+.flatpickr-months {
+    @apply items-center pt-1;
+}
+
+.flatpickr-months .flatpickr-month,
+.flatpickr-current-month .flatpickr-monthDropdown-months,
+.flatpickr-current-month input.cur-year {
+    @apply text-sm font-semibold text-zinc-900 dark:bg-zinc-900 dark:text-white;
+}
+
+.flatpickr-months .flatpickr-prev-month,
+.flatpickr-months .flatpickr-next-month {
+    @apply top-1.5 rounded-lg text-zinc-500 hover:text-zinc-900 dark:hover:text-white;
+}
+
+.flatpickr-months .flatpickr-prev-month:hover svg,
+.flatpickr-months .flatpickr-next-month:hover svg {
+    fill: currentColor;
+}
+
+span.flatpickr-weekday {
+    @apply text-xs font-medium text-zinc-400;
+}
+
+.flatpickr-innerContainer,
+.flatpickr-rContainer,
+.flatpickr-days,
+.dayContainer {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+}
+
+.flatpickr-day {
+    @apply rounded-lg border-0 text-sm text-zinc-700 dark:text-zinc-200;
+    max-width: none;
+}
+
+.flatpickr-day:hover,
+.flatpickr-day:focus {
+    @apply bg-zinc-100 dark:bg-white/10;
+}
+
+.flatpickr-day.today {
+    @apply font-semibold text-brand-700 dark:text-brand-300;
+}
+
+.flatpickr-day.selected,
+.flatpickr-day.selected:hover {
+    @apply bg-brand-600 text-white;
+}
+
+.flatpickr-day.flatpickr-disabled,
+.flatpickr-day.prevMonthDay,
+.flatpickr-day.nextMonthDay {
+    @apply text-zinc-300 dark:text-zinc-600;
+}
+
+.flatpickr-time {
+    @apply border-zinc-100 dark:border-zinc-800;
+}
+
+.flatpickr-time input,
+.flatpickr-time .flatpickr-time-separator {
+    @apply text-sm font-semibold text-zinc-900 dark:text-white;
+}
+
+.flatpickr-time input:hover,
+.flatpickr-time input:focus,
+.flatpickr-time .flatpickr-am-pm:hover {
+    @apply bg-zinc-100 dark:bg-white/10;
+}
+

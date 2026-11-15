@@ -178,8 +178,8 @@
                                 <div x-show="more" x-collapse class="space-y-4 pt-4">
                                     <x-ui.input name="tags" :label="__('Tags')" placeholder="backup, prod" :hint="__('Comma separated')" optional />
                                     <x-ui.input name="click" type="url" :label="__('Link')" placeholder="https://…" :hint="__('Opened when the notification is tapped.')" optional />
-                                    <x-ui.input name="attachment" type="file" :label="__('Attachment')" :hint="__('An image is shown in the notification.')" optional class="[&_input]:py-2" />
-                                    <x-ui.input name="send_at" type="datetime-local" :label="__('Send later')" :hint="__('Leave empty to send now.')" optional />
+                                    <x-ui.file name="attachment" :label="__('Attachment')" :hint="__('An image is shown in the notification.')" optional />
+                                    <x-ui.input name="send_at" type="datetime-local" min="today" :label="__('Send later')" :hint="__('Leave empty to send now.')" optional />
                                 </div>
                             </div>
                         </div>
@@ -314,10 +314,8 @@
                                 <form method="POST" action="{{ route('topics.members.update', [$topic, $member]) }}">
                                     @csrf
                                     @method('PUT')
-                                    <select name="can_write" onchange="this.form.submit()" class="form-control w-auto py-1.5 pr-8 text-xs">
-                                        <option value="0" @selected(! $member->pivot->can_write)>{{ __('Read only') }}</option>
-                                        <option value="1" @selected($member->pivot->can_write)>{{ __('Read & publish') }}</option>
-                                    </select>
+                                    <x-ui.select name="can_write" :id="'member-'.$member->id" size="sm" onchange="this.form.submit()" :value="$member->pivot->can_write ? '1' : '0'"
+                                        :options="['0' => __('Read only'), '1' => __('Read & publish')]" class="w-40" />
                                 </form>
                                 <form method="POST" action="{{ route('topics.members.destroy', [$topic, $member]) }}" data-confirm-title="{{ __('Remove :name from this topic?', ['name' => $member->name]) }}" data-confirm="{{ __('Their devices will stop receiving the notifications of this topic.') }}" data-confirm-action="{{ __('Remove') }}">
                                     @csrf

@@ -2,6 +2,9 @@ import Alpine from 'alpinejs';
 import collapse from '@alpinejs/collapse';
 import focus from '@alpinejs/focus';
 import { createEcho } from './echo';
+import flatpickr from 'flatpickr';
+import { French } from 'flatpickr/dist/l10n/fr.js';
+import 'flatpickr/dist/flatpickr.min.css';
 
 /**
  * Tocsin's web interface is server-rendered (one page per URL).
@@ -171,6 +174,91 @@ function urlBase64ToUint8Array(value) {
 }
 
 /* ------------------------------------------------------ Live messages */
+
+/* ---------------------------------------------------------- Date picker */
+
+// Date and date-time fields (components/ui/input.blade.php with type
+// "date" or "datetime-local"): a styled calendar instead of the browser's.
+// The submitted value keeps the native formats (Y-m-d, Y-m-d\TH:i).
+Alpine.data('datePicker', (withTime = false, min = null) => ({
+    init() {
+        const french = document.documentElement.lang.startsWith('fr');
+        this.picker = flatpickr(this.$el, {
+            locale: french ? French : 'default',
+            enableTime: withTime,
+            time_24hr: true,
+            minuteIncrement: 5,
+            dateFormat: withTime ? 'Y-m-d\\TH:i' : 'Y-m-d',
+            altInput: true,
+            altFormat: withTime ? (french ? 'j F Y à H:i' : 'F j, Y at H:i') : (french ? 'j F Y' : 'F j, Y'),
+            minDate: min || null,
+            disableMobile: true,
+            monthSelectorType: 'static',
+        });
+    },
+    destroy() {
+        this.picker?.destroy();
+    },
+}));
+
+/* --------------------------------------------------------- Custom select */
+
+// Drives components/ui/select.blade.php: a styled listbox in front of a
+// hidden native <select> (which still holds the value for forms, x-model
+// and onchange handlers).
+Alpine.data('selectBox', () => ({
+    open: false,
+    value: '',
+    label: '',
+    active: 0,
+    options: [],
+    init() {
+        this.read();
+        // x-model may set the native value after this component starts.
+        this.$nextTick(() => this.read());
+    },
+    read() {
+        const native = this.$refs.native;
+        this.options = [...native.options].map((option) => ({ value: option.value, label: option.text }));
+        this.sync();
+    },
+    sync() {
+        const native = this.$refs.native;
+        this.value = native.value;
+        this.label = native.options[native.selectedIndex]?.text ?? '';
+    },
+    toggle() {
+        this.open ? this.close() : this.show();
+    },
+    show() {
+        this.open = true;
+        this.active = Math.max(0, this.options.findIndex((option) => option.value === this.value));
+        this.$nextTick(() => this.reveal());
+    },
+    close() {
+        this.open = false;
+    },
+    move(step) {
+        if (!this.open) return this.show();
+        this.active = (this.active + step + this.options.length) % this.options.length;
+        this.$nextTick(() => this.reveal());
+    },
+    pick() {
+        this.open ? this.choose(this.options[this.active].value) : this.show();
+    },
+    reveal() {
+        this.$refs.list?.children[this.active + 1]?.scrollIntoView({ block: 'nearest' });
+    },
+    choose(value) {
+        const native = this.$refs.native;
+        native.value = value;
+        this.sync();
+        this.close();
+        native.dispatchEvent(new Event('input', { bubbles: true }));
+        native.dispatchEvent(new Event('change', { bubbles: true }));
+        this.$refs.button.focus();
+    },
+}));
 
 Alpine.data('liveTopic', (channelName, isPrivate) => ({
     state: 'connecting',

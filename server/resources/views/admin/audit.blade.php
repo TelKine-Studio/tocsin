@@ -7,11 +7,7 @@
                 <x-ui.icon name="search" class="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-zinc-400" />
                 <input type="search" name="q" value="{{ $search }}" placeholder="{{ __('Search by user, subject or IP…') }}" class="form-control pl-10">
             </div>
-            <select name="action" onchange="this.form.submit()" class="form-control sm:w-56">
-                @foreach ($groups as $value => $label)
-                    <option value="{{ $value }}" @selected($action === $value)>{{ $label }}</option>
-                @endforeach
-            </select>
+            <x-ui.select name="action" :options="$groups" :value="$action" onchange="this.form.submit()" class="sm:w-56" />
         </form>
 
         <ul class="divide-y divide-zinc-100 dark:divide-zinc-800">
