@@ -80,8 +80,18 @@ class AppState extends ChangeNotifier {
       ..add(push.tokens.listen((_) => unawaited(registerDevice())))
       ..add(push.messages.listen(_onPushReceived));
 
-    await realtime.sync(servers, subscriptions);
-    unawaited(refreshAll());
+    // Everything that needs the network runs after the first screen: a
+    // notification tapped while the app was closed opens right away.
+    unawaited(_connect());
+  }
+
+  Future<void> _connect() async {
+    try {
+      await realtime.sync(servers, subscriptions);
+    } catch (_) {
+      // Realtime is best effort; the next refresh catches up.
+    }
+    unawaited(refreshAll().catchError((_) {}));
 
     pushPermission = await push.permission();
     if (subscriptions.isNotEmpty && pushPermission != PushPermission.denied) {

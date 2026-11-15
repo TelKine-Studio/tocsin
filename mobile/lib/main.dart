@@ -34,10 +34,25 @@ Future<void> main() async {
   }
 }
 
+/// Last tap handled: iOS may report a launch tap both as "onTap" and as
+/// the initial notification.
+String? _lastTap;
+DateTime? _lastTapAt;
+
 Future<void> _openFromPush(AppState state, Map<String, dynamic> payload) async {
   final server = payload['server'] as String?;
   final topic = payload['topic'] as String?;
   if (server == null || topic == null) return;
+
+  final key = '$server|$topic|${payload['id']}|${payload['actionIndex']}';
+  final now = DateTime.now();
+  if (key == _lastTap &&
+      _lastTapAt != null &&
+      now.difference(_lastTapAt!) < const Duration(seconds: 5)) {
+    return;
+  }
+  _lastTap = key;
+  _lastTapAt = now;
 
   // A button of the notification was tapped: run its action.
   final index = payload['actionIndex'];
