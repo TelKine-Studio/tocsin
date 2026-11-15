@@ -90,7 +90,7 @@ None are required. They exist for advanced setups only:
 | `APP_KEY` | generated in `/data/app.key` | Encryption key. Set it only if you manage secrets externally. |
 | `DB_CONNECTION` | `sqlite` | `pgsql` or `mysql` to use an external database (then set `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`). |
 | `TOCSIN_WS_HOST` / `TOCSIN_WS_PORT` / `TOCSIN_WS_SCHEME` | derived from the public URL | Public WebSocket address given to clients, if the realtime server is exposed elsewhere. |
-| `TOCSIN_RELAY_URL` | `https://push.telkine.ci` | Default relay proposed in the interface (it can also be changed there). |
+| `TOCSIN_RELAY_URL` | `https://push.telkine.net` | Default relay proposed in the interface (it can also be changed there). |
 | `TOCSIN_RELAY_OPERATOR` | `false` | Only for an instance that sells the push relay to others (Telkine): shows the relay settings, plans, payments and client instances, and exposes the relay API. |
 | `LOG_LEVEL` | `warning` | `debug`, `info`, `warning`, `error`. |
 

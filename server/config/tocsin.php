@@ -34,7 +34,7 @@ return [
     'relay_operator' => (bool) env('TOCSIN_RELAY_OPERATOR', false),
 
     'relay' => [
-        'url' => env('TOCSIN_RELAY_URL', 'https://push.telkine.ci'),
+        'url' => env('TOCSIN_RELAY_URL', 'https://push.telkine.net'),
     ],
 
     /*

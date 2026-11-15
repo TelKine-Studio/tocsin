@@ -30,7 +30,7 @@
                             <x-ui.toggle name="sso_auto_create" :checked="$settings->boolean('sso.auto_create')" :label="__('Create accounts automatically')"
                                 :description="__('People without an account get one (role User) at their first sign-in. Otherwise, add them first in Users.')" />
                         </div>
-                        <x-ui.input name="sso_allowed_domains" :label="__('Allowed email domains')" :value="$settings->get('sso.allowed_domains')" placeholder="telkine.ci, example.com"
+                        <x-ui.input name="sso_allowed_domains" :label="__('Allowed email domains')" :value="$settings->get('sso.allowed_domains')" placeholder="telkine.net, example.com"
                             :hint="__('Comma separated. Empty: any domain accepted by the provider.')" />
                     </div>
                 </div>

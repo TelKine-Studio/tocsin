@@ -143,7 +143,7 @@ class SecurityTest extends TestCase
             'sso.client_id' => 'tocsin',
             'sso.client_secret' => 'secret',
             'sso.auto_create' => true,
-            'sso.allowed_domains' => 'telkine.ci',
+            'sso.allowed_domains' => 'telkine.net',
         ]);
 
         Http::fake([
@@ -154,7 +154,7 @@ class SecurityTest extends TestCase
             ]),
             'https://id.example.com/token' => Http::response(['access_token' => 'at']),
             'https://id.example.com/userinfo' => Http::sequence()
-                ->push(['email' => 'ama@telkine.ci', 'email_verified' => true, 'name' => 'Ama Koné'])
+                ->push(['email' => 'ama@telkine.net', 'email_verified' => true, 'name' => 'Ama Koné'])
                 ->push(['email' => 'eve@evil.test', 'email_verified' => true]),
         ]);
 
@@ -172,7 +172,7 @@ class SecurityTest extends TestCase
         $state = session('sso.state');
         $this->get('/auth/sso/callback?code=abc&state='.$state)->assertRedirect(route('dashboard'));
         $this->assertAuthenticated();
-        $this->assertSame('Ama Koné', User::where('email', 'ama@telkine.ci')->sole()->name);
+        $this->assertSame('Ama Koné', User::where('email', 'ama@telkine.net')->sole()->name);
 
         auth()->logout();
         $this->get('/auth/sso');
