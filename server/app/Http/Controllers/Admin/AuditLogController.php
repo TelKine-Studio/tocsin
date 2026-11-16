@@ -19,9 +19,8 @@ class AuditLogController extends Controller
             ->with('user')
             ->when($action !== '', fn ($query) => $query->where('action', 'like', $action.'%'))
             ->when($search !== '', fn ($query) => $query->where(fn ($q) => $q
-                ->where('description', 'like', "%{$search}%")
-                ->orWhere('ip_address', 'like', "%{$search}%")
-                ->orWhereHas('user', fn ($u) => $u->where('name', 'like', "%{$search}%")->orWhere('email', 'like', "%{$search}%"))))
+                ->whereContains(['description', 'ip_address'], $search)
+                ->orWhereHas('user', fn ($u) => $u->whereContains(['name', 'email'], $search))))
             ->latest()->latest('id')
             ->paginate(50)
             ->withQueryString();

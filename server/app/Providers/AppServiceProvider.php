@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Support\AccountQuota;
 use App\Support\Settings;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Queue\Events\JobProcessing;
@@ -29,6 +30,20 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Search that behaves the same on SQLite and PostgreSQL: any column
+        // type (text, JSON, UUID), case-insensitive, the term escaped.
+        QueryBuilder::macro('whereContains', function (array|string $columns, string $term, string $boolean = 'and') {
+            /** @var QueryBuilder $this */
+            $pattern = '%'.addcslashes(mb_strtolower($term), '\\%_').'%';
+
+            return $this->where(function (QueryBuilder $query) use ($columns, $pattern) {
+                foreach ((array) $columns as $column) {
+                    $query->orWhereRaw('lower(cast('.$query->getGrammar()->wrap($column).' as text)) like ? escape \'\\\'', [$pattern]);
+                }
+            }, boolean: $boolean);
+        });
+        QueryBuilder::macro('orWhereContains', fn (array|string $columns, string $term) => $this->whereContains($columns, $term, 'or'));
+
         $this->app->make(Settings::class)->applyToConfig();
 
         // Error pages can render before the SetLocale middleware ran (unknown

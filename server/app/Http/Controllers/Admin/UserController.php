@@ -23,8 +23,7 @@ class UserController extends Controller
 
         $users = User::query()
             ->when($search !== '', fn ($query) => $query->where(fn ($q) => $q
-                ->where('name', 'like', "%{$search}%")
-                ->orWhere('email', 'like', "%{$search}%")))
+                ->whereContains(['name', 'email'], $search)))
             ->withCount(['ownedTopics', 'devices'])
             ->when(AccountQuota::enabled(), fn ($query) => $query->withSum(
                 ['usages as messages_today' => fn ($q) => $q->where('date', now()->toDateString())],
@@ -37,8 +36,7 @@ class UserController extends Controller
         $invitations = Invitation::query()
             ->pending()
             ->when($search !== '', fn ($query) => $query->where(fn ($q) => $q
-                ->where('name', 'like', "%{$search}%")
-                ->orWhere('email', 'like', "%{$search}%")))
+                ->whereContains(['name', 'email'], $search)))
             ->with('inviter')
             ->latest()
             ->get();

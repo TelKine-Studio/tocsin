@@ -21,9 +21,7 @@ class RelayClientController extends Controller
 
         $clients = RelayClient::query()
             ->when($search !== '', fn ($query) => $query->where(fn ($q) => $q
-                ->where('name', 'like', "%{$search}%")
-                ->orWhere('url', 'like', "%{$search}%")
-                ->orWhere('email', 'like', "%{$search}%")))
+                ->whereContains(['name', 'url', 'email'], $search)))
             ->with('todayUsage')
             ->withSum(['usages as sent_30_days' => fn ($q) => $q->where('date', '>=', now()->subDays(30)->toDateString())], 'sent')
             ->latest('last_used_at')

@@ -32,9 +32,7 @@ class TopicController extends Controller
         $topics = Topic::query()
             ->readableBy($request->user())
             ->when($search !== '', fn ($query) => $query->where(fn ($q) => $q
-                ->where('name', 'like', "%{$search}%")
-                ->orWhere('display_name', 'like', "%{$search}%")
-                ->orWhere('description', 'like', "%{$search}%")))
+                ->whereContains(['name', 'display_name', 'description'], $search)))
             ->when($visibility, fn ($query) => $query->where('visibility', $visibility->value))
             ->with('owner')
             ->withCount(['messages', 'members', 'devices'])
