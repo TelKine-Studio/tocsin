@@ -261,6 +261,9 @@
         
             @if ($canManage)
                 <x-ui.card :title="__('Webhooks')" :description="__('Connect Grafana, Alertmanager, GitHub, GitLab, Uptime Kuma, or any tool that can notify Slack or Discord: paste the URL in its webhook settings.')" icon="link" :padding="false" class="xl:col-span-2">
+                    <x-slot:actions>
+                        <x-ui.button type="button" size="sm" icon="plus" x-data x-on:click="$dispatch('open-modal', 'create-webhook')">{{ __('Create webhook') }}</x-ui.button>
+                    </x-slot:actions>
                     @forelse ($webhooks as $webhook)
                         <div class="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-zinc-100 px-5 py-4 first:border-0 sm:px-6 dark:border-zinc-800">
                             <div class="min-w-0 flex-1">
@@ -280,22 +283,17 @@
                     @empty
                         <p class="px-6 pt-2 pb-5 text-sm text-zinc-500">{{ __('No webhook yet.') }}</p>
                     @endforelse
-                    <x-slot:footer>
-                        <form method="POST" action="{{ route('topics.webhooks.store', $topic) }}" class="flex w-full flex-col gap-3 sm:flex-row sm:items-end">
-                            @csrf
-                            <x-ui.input name="name" :label="__('Name')" :placeholder="__('e.g. Grafana production')" required class="flex-1" />
-                            <x-ui.select name="source" :label="__('Source')" value="auto" :options="collect(App\Models\TopicWebhook::SOURCES)->mapWithKeys(fn ($s) => [$s => App\Models\TopicWebhook::sourceLabel($s)])" class="sm:w-64" />
-                            <x-ui.button icon="plus">{{ __('Create webhook') }}</x-ui.button>
-                        </form>
-                    </x-slot:footer>
                 </x-ui.card>
             @endif
         </div>
 
         {{-- Access --}}
         @if ($canManage)
-            <div x-show="tab === 'access'" x-cloak class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+            <div x-show="tab === 'access'" x-cloak>
                 <x-ui.card :title="__('Members')" :description="$topic->isPublic() ? __('Anyone can subscribe to this public topic. Members can also publish.') : __('Only these people can subscribe to this private topic.')" icon="users" :padding="false">
+                    <x-slot:actions>
+                        <x-ui.button type="button" size="sm" icon="user-plus" x-data x-on:click="$dispatch('open-modal', 'add-member')">{{ __('Add a member') }}</x-ui.button>
+                    </x-slot:actions>
                     <ul>
                         <li class="flex items-center gap-3 border-t border-zinc-100 px-5 py-3.5 first:border-0 sm:px-6 dark:border-zinc-800">
                             @if ($topic->owner)<x-ui.avatar :user="$topic->owner" />@else<x-ui.avatar name="?" />@endif
@@ -328,26 +326,40 @@
                     </ul>
                 </x-ui.card>
 
-                <form method="POST" action="{{ route('topics.members.store', $topic) }}">
-                    @csrf
-                    <x-ui.card :title="__('Add a member')" icon="user-plus">
-                        <div class="space-y-4">
-                            <x-ui.input name="email" type="email" :label="__('Email')" list="users-list" required :placeholder="__('user@example.com')" icon="mail" />
-                            <datalist id="users-list">
-                                @foreach ($users as $candidate)
-                                    <option value="{{ $candidate->email }}">{{ $candidate->name }}</option>
-                                @endforeach
-                            </datalist>
-                            <x-ui.toggle name="can_write" :label="__('Can publish')" :description="__('Allow this member to send messages to the topic.')" />
-                        </div>
-                        <x-slot:footer>
-                            <x-ui.button icon="plus">{{ __('Add') }}</x-ui.button>
-                        </x-slot:footer>
-                    </x-ui.card>
-                </form>
             </div>
         @endif
     </div>
+    @if ($canManage)
+        <x-ui.modal name="create-webhook" :title="__('Create webhook')" :description="__('Paste the URL it gives you in the webhook settings of your tool.')" :open="$errors->has('source') || ($errors->has('name') && old('source'))">
+            <form method="POST" action="{{ route('topics.webhooks.store', $topic) }}" class="space-y-4">
+                @csrf
+                <x-ui.input name="name" :label="__('Name')" :placeholder="__('e.g. Grafana production')" required autofocus />
+                <x-ui.select name="source" :label="__('Source')" :value="old('source', 'auto')" :options="collect(App\Models\TopicWebhook::SOURCES)->mapWithKeys(fn ($s) => [$s => App\Models\TopicWebhook::sourceLabel($s)])" />
+                <div class="flex justify-end gap-3 pt-2">
+                    <x-ui.button type="button" variant="ghost" x-on:click="open = false">{{ __('Cancel') }}</x-ui.button>
+                    <x-ui.button icon="plus">{{ __('Create webhook') }}</x-ui.button>
+                </div>
+            </form>
+        </x-ui.modal>
+
+        <x-ui.modal name="add-member" :title="__('Add a member')" :open="$errors->has('email')">
+            <form method="POST" action="{{ route('topics.members.store', $topic) }}" class="space-y-4">
+                @csrf
+                <x-ui.input name="email" type="email" :label="__('Email')" list="users-list" required :placeholder="__('user@example.com')" icon="mail" />
+                <datalist id="users-list">
+                    @foreach ($users as $candidate)
+                        <option value="{{ $candidate->email }}">{{ $candidate->name }}</option>
+                    @endforeach
+                </datalist>
+                <x-ui.toggle name="can_write" :label="__('Can publish')" :description="__('Allow this member to send messages to the topic.')" />
+                <div class="flex justify-end gap-3 pt-2">
+                    <x-ui.button type="button" variant="ghost" x-on:click="open = false">{{ __('Cancel') }}</x-ui.button>
+                    <x-ui.button icon="plus">{{ __('Add') }}</x-ui.button>
+                </div>
+            </form>
+        </x-ui.modal>
+    @endif
+
     <x-ui.modal name="pair-mobile" :title="__('Add on mobile')" max-width="max-w-sm">
         <div x-data="pairing(@js(route('topics.pairing', $topic)))" x-on:open-modal.window="if ($event.detail === 'pair-mobile') load()" class="text-center">
             <div class="mx-auto grid size-56 place-items-center rounded-2xl border border-zinc-200 bg-white p-3 dark:border-zinc-700">

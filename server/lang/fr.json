@@ -1211,5 +1211,9 @@
     "Add your Apple key to send notifications to iPhone and iPad.": "Ajoutez votre clé Apple pour envoyer des notifications sur iPhone et iPad.",
     "Add the key of your Firebase project to send notifications to Android phones.": "Ajoutez la clé de votre projet Firebase pour envoyer des notifications sur Android.",
     "Any domain": "Tous les domaines",
-    "Sending method": "Mode d’envoi"
+    "Sending method": "Mode d’envoi",
+    "custom": "personnalisée",
+    "Until you change it": "Jusqu’à modification",
+    "Change": "Changer",
+    "Paste the URL it gives you in the webhook settings of your tool.": "Collez l’adresse obtenue dans les réglages de webhook de votre outil."
 }

@@ -20,27 +20,36 @@
             <form method="POST" action="{{ route('profile.update') }}" id="account" class="scroll-mt-24">
                 @csrf
                 @method('PUT')
-                <x-ui.card :title="__('Account')" :description="__('Your name, email address and language.')" icon="user">
+                <x-settings.section :title="__('Account')" :description="__('Your name, email address and language.')" icon="user" :fields="['name', 'email', 'locale']">
+                    <x-slot:summary>
+                        <x-settings.summary>
+                            <x-settings.value :label="__('Full name')" :value="$user->name" />
+                            <x-settings.value :label="__('Email')" :value="$user->email" />
+                            <x-settings.value :label="__('Language')" :value="$user->locale ? ($locales[$user->locale] ?? $user->locale) : __('Instance default')" />
+                        </x-settings.summary>
+                    </x-slot:summary>
                     <div class="grid gap-5 sm:grid-cols-2">
                         <x-ui.input name="name" :label="__('Full name')" :value="$user->name" required />
                         <x-ui.input name="email" type="email" :label="__('Email')" :value="$user->email" required />
                         <x-ui.select name="locale" :label="__('Language')" :value="$user->locale" :options="['' => __('Instance default')] + $locales" />
                     </div>
-                    <x-slot:footer><x-ui.button>{{ __('Save') }}</x-ui.button></x-slot:footer>
-                </x-ui.card>
+                </x-settings.section>
             </form>
 
             <form method="POST" action="{{ route('profile.password') }}" id="security" class="scroll-mt-24">
                 @csrf
                 @method('PUT')
-                <x-ui.card :title="__('Password')" :description="__('Use a long password that you do not use elsewhere.')" icon="lock">
+                <x-settings.section :title="__('Password')" :description="__('Use a long password that you do not use elsewhere.')" icon="lock"
+                    :fields="['current_password', 'password', 'password_confirmation']" :edit-label="__('Change')" :save-label="__('Update password')">
+                    <x-slot:summary>
+                        <p class="font-mono text-sm tracking-widest text-zinc-500">••••••••••</p>
+                    </x-slot:summary>
                     <div class="grid gap-5 sm:grid-cols-2">
                         <x-ui.input name="current_password" type="password" :label="__('Current password')" required autocomplete="current-password" class="sm:col-span-2" />
                         <x-ui.input name="password" type="password" :label="__('New password')" required autocomplete="new-password" />
                         <x-ui.input name="password_confirmation" type="password" :label="__('Confirm password')" required autocomplete="new-password" />
                     </div>
-                    <x-slot:footer><x-ui.button>{{ __('Update password') }}</x-ui.button></x-slot:footer>
-                </x-ui.card>
+                </x-settings.section>
             </form>
 
             <x-ui.card :title="__('Two-factor authentication')" :description="__('Ask for a code from an authenticator app (Google Authenticator, 1Password, Bitwarden…) at each login.')" icon="shield">
@@ -128,6 +137,9 @@
             </x-ui.card>
 
             <x-ui.card id="tokens" class="scroll-mt-24" :title="__('Access tokens')" :description="__('Tokens let your scripts publish messages. Create one per script and revoke those you no longer use.')" icon="key" :padding="false">
+                <x-slot:actions>
+                    <x-ui.button type="button" size="sm" icon="plus" x-data x-on:click="$dispatch('open-modal', 'create-token')">{{ __('Create token') }}</x-ui.button>
+                </x-slot:actions>
                 @if (session('plain_token'))
                     <div class="border-y border-amber-200 bg-amber-50 px-5 py-5 sm:px-6 dark:border-amber-500/20 dark:bg-amber-500/10">
                         <p class="mb-3 flex items-center gap-2 text-sm font-semibold text-amber-900 dark:text-amber-200"><x-ui.icon name="alert" class="size-4" />{{ __('Copy your new token now, it will not be shown again.') }}</p>
@@ -160,31 +172,35 @@
                     @endunless
                 @endforelse
 
-                <x-slot:footer>
-                    <form method="POST" action="{{ route('tokens.store') }}" class="w-full space-y-4" x-data="{ limited: {{ old('topics') ? 'true' : 'false' }} }">
-                        @csrf
-                        <div class="grid gap-4 sm:grid-cols-[1fr_200px]">
-                            <x-ui.input name="name" :label="__('Name')" :placeholder="__('Token name, e.g. Backup script')" required maxlength="100" />
-                            <x-ui.select name="expires" :label="__('Expiration')" value="never" :options="['never' => __('Never'), '30' => __('30 days'), '90' => __('90 days'), '365' => __('1 year')]" />
-                        </div>
-                        <label class="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
-                            <input type="checkbox" x-model="limited" class="size-4 rounded border-zinc-300 text-brand-600">
-                            {{ __('Limit to some topics (recommended for scripts)') }}
-                        </label>
-                        <div x-show="limited" x-collapse class="flex flex-wrap gap-2">
-                            @forelse ($writableTopics as $topic)
-                                <label class="cursor-pointer">
-                                    <input type="checkbox" name="topics[]" value="{{ $topic->name }}" class="peer sr-only" @checked(in_array($topic->name, old('topics', [])))>
-                                    <span class="inline-flex items-center rounded-lg border border-zinc-200 px-2.5 py-1 font-mono text-xs text-zinc-600 transition peer-checked:border-brand-500 peer-checked:bg-brand-50 peer-checked:text-brand-700 dark:border-zinc-700 dark:text-zinc-300 dark:peer-checked:bg-brand-500/10 dark:peer-checked:text-brand-300">#{{ $topic->name }}</span>
-                                </label>
-                            @empty
-                                <p class="text-xs text-zinc-500">{{ __('No topic you can publish to.') }}</p>
-                            @endforelse
-                        </div>
-                        <div class="flex justify-end"><x-ui.button icon="plus">{{ __('Create token') }}</x-ui.button></div>
-                    </form>
-                </x-slot:footer>
             </x-ui.card>
         </div>
     </div>
+    <x-ui.modal name="create-token" max-width="max-w-xl" :title="__('Create token')" :description="__('Tokens let your scripts publish messages. Create one per script and revoke those you no longer use.')"
+        :open="$errors->hasAny(['expires', 'topics']) || ($errors->has('name') && old('expires'))">
+        <form method="POST" action="{{ route('tokens.store') }}" class="space-y-4" x-data="{ limited: {{ old('topics') ? 'true' : 'false' }} }">
+            @csrf
+            <div class="grid gap-4 sm:grid-cols-[1fr_200px]">
+                <x-ui.input name="name" :label="__('Name')" :placeholder="__('Token name, e.g. Backup script')" required maxlength="100" />
+                <x-ui.select name="expires" :label="__('Expiration')" value="never" :options="['never' => __('Never'), '30' => __('30 days'), '90' => __('90 days'), '365' => __('1 year')]" />
+            </div>
+            <label class="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+                <input type="checkbox" x-model="limited" class="size-4 rounded border-zinc-300 text-brand-600">
+                {{ __('Limit to some topics (recommended for scripts)') }}
+            </label>
+            <div x-show="limited" x-collapse class="flex flex-wrap gap-2">
+                @forelse ($writableTopics as $topic)
+                    <label class="cursor-pointer">
+                        <input type="checkbox" name="topics[]" value="{{ $topic->name }}" class="peer sr-only" @checked(in_array($topic->name, old('topics', [])))>
+                        <span class="inline-flex items-center rounded-lg border border-zinc-200 px-2.5 py-1 font-mono text-xs text-zinc-600 transition peer-checked:border-brand-500 peer-checked:bg-brand-50 peer-checked:text-brand-700 dark:border-zinc-700 dark:text-zinc-300 dark:peer-checked:bg-brand-500/10 dark:peer-checked:text-brand-300">#{{ $topic->name }}</span>
+                    </label>
+                @empty
+                    <p class="text-xs text-zinc-500">{{ __('No topic you can publish to.') }}</p>
+                @endforelse
+            </div>
+            <div class="flex justify-end gap-3 pt-2">
+                <x-ui.button type="button" variant="ghost" x-on:click="open = false">{{ __('Cancel') }}</x-ui.button>
+                <x-ui.button icon="plus">{{ __('Create token') }}</x-ui.button>
+            </div>
+        </form>
+    </x-ui.modal>
 </x-layouts.app>

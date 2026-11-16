@@ -15,7 +15,15 @@
         <form method="POST" action="{{ route('admin.users.update', $user) }}">
             @csrf
             @method('PUT')
-            <x-ui.card :title="__('Account')" icon="user">
+            <x-settings.section :title="__('Account')" icon="user" :fields="['name', 'email', 'role', 'is_active']" :save-label="__('Save changes')">
+                <x-slot:summary>
+                    <x-settings.summary>
+                        <x-settings.value :label="__('Full name')" :value="$user->name" />
+                        <x-settings.value :label="__('Email')" :value="$user->email" />
+                        <x-settings.value :label="__('Role')" :value="$user->role->label()" />
+                        <x-settings.value :label="__('Status')" :on="$user->is_active" :value="__('Active')" :empty="__('Suspended')" />
+                    </x-settings.summary>
+                </x-slot:summary>
                 <div class="space-y-6">
                     <div class="grid gap-5 sm:grid-cols-2">
                         <x-ui.input name="name" :label="__('Full name')" :value="$user->name" required />
@@ -43,11 +51,7 @@
                         <x-ui.toggle name="is_active" :checked="$user->is_active" :label="__('Active account')" :description="__('Disabled users cannot log in, their tokens are revoked and their devices stop receiving private topics.')" />
                     </div>
                 </div>
-                <x-slot:footer>
-                    <x-ui.button variant="ghost" :href="route('admin.users.index')">{{ __('Cancel') }}</x-ui.button>
-                    <x-ui.button>{{ __('Save changes') }}</x-ui.button>
-                </x-slot:footer>
-            </x-ui.card>
+            </x-settings.section>
         </form>
 
         @if (\App\Support\AccountQuota::enabled() && ! $user->isAdmin())
@@ -58,27 +62,33 @@
             <form method="POST" action="{{ route('admin.users.plan', $user) }}">
                 @csrf
                 @method('PUT')
-                <x-ui.card :title="__('Plan')" :description="__(':used of :limit messages today · :topics topics', ['used' => number_format($user->messagesToday(), 0, ',', ' '), 'limit' => number_format($user->effectiveDailyLimit(), 0, ',', ' '), 'topics' => $user->ownedTopics()->count()])" icon="sparkles">
+                <x-settings.section :title="__('Plan')" :description="__(':used of :limit messages today · :topics topics', ['used' => number_format($user->messagesToday(), 0, ',', ' '), 'limit' => number_format($user->effectiveDailyLimit(), 0, ',', ' '), 'topics' => $user->ownedTopics()->count()])" :fields="['plan', 'daily_limit', 'plan_expires_at']" :save-label="__('Save plan')" icon="sparkles">
+                    <x-slot:summary>
+                        <x-settings.summary>
+                            <x-settings.value :label="__('Plan')" :value="['free' => __('Free'), 'pro' => 'Pro', 'business' => 'Business'][$user->plan ?? 'free'] ?? ucfirst((string) $user->plan)" />
+                            <x-settings.value :label="__('Daily limit')" :value="number_format($user->effectiveDailyLimit(), 0, ',', ' ').($user->daily_limit !== null ? ' · '.__('custom') : '')" />
+                            <x-settings.value :label="__('Paid until')" :value="$user->plan_expires_at?->isoFormat('LL')" :empty="($user->plan ?? 'free') === 'free' ? '—' : __('Until you change it')" />
+                        </x-settings.summary>
+                        @if ($payments->isNotEmpty())
+                            <ul class="mt-6 space-y-1.5 border-t border-zinc-100 pt-5 text-sm dark:border-zinc-800">
+                                @foreach ($payments as $payment)
+                                    <li class="flex flex-wrap gap-x-3 text-zinc-600 dark:text-zinc-400">
+                                        <span class="font-medium text-zinc-900 dark:text-white">{{ ucfirst($payment->plan) }}</span>
+                                        <span class="tabular-nums">{{ number_format($payment->amount, 0, ',', ' ') }} {{ $payment->currency }}</span>
+                                        <span>{{ $payment->provider }}</span>
+                                        <span class="font-mono text-xs">{{ $payment->reference }}</span>
+                                        <span class="flex-1 text-right">{{ $payment->status }} · {{ ($payment->paid_at ?? $payment->created_at)->isoFormat('LL') }}</span>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        @endif
+                    </x-slot:summary>
                     <div class="grid gap-5 sm:grid-cols-3">
                         <x-ui.select name="plan" :label="__('Plan')" :value="$user->plan ?? 'free'" :options="['free' => __('Free'), 'pro' => 'Pro', 'business' => 'Business']" />
                         <x-ui.input name="daily_limit" type="number" min="0" :label="__('Custom daily limit')" :value="$user->daily_limit" :placeholder="number_format($plans->dailyLimit($user->plan ?? 'free'), 0, ',', ' ')" :hint="__('Empty: the plan limit.')" />
                         <x-ui.input name="plan_expires_at" type="date" :label="__('Paid until')" :value="$user->plan_expires_at?->toDateString()" :hint="__('Empty: until you change it.')" />
                     </div>
-                    @if ($payments->isNotEmpty())
-                        <ul class="mt-6 space-y-1.5 border-t border-zinc-100 pt-5 text-sm dark:border-zinc-800">
-                            @foreach ($payments as $payment)
-                                <li class="flex flex-wrap gap-x-3 text-zinc-600 dark:text-zinc-400">
-                                    <span class="font-medium text-zinc-900 dark:text-white">{{ ucfirst($payment->plan) }}</span>
-                                    <span class="tabular-nums">{{ number_format($payment->amount, 0, ',', ' ') }} {{ $payment->currency }}</span>
-                                    <span>{{ $payment->provider }}</span>
-                                    <span class="font-mono text-xs">{{ $payment->reference }}</span>
-                                    <span class="flex-1 text-right">{{ $payment->status }} · {{ ($payment->paid_at ?? $payment->created_at)->isoFormat('LL') }}</span>
-                                </li>
-                            @endforeach
-                        </ul>
-                    @endif
-                    <x-slot:footer><x-ui.button>{{ __('Save plan') }}</x-ui.button></x-slot:footer>
-                </x-ui.card>
+                </x-settings.section>
             </form>
         @endif
 
