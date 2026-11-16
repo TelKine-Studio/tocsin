@@ -255,6 +255,94 @@ Alpine.data('datePicker', (withTime = false, min = null) => ({
 // Drives components/ui/select.blade.php: a styled listbox in front of a
 // hidden native <select> (which still holds the value for forms, x-model
 // and onchange handlers).
+/* ---------------------------------------------------- Live lists */
+
+// A filtered, paginated list that updates without reloading the page: the
+// form (search typed with a short pause, selects at once) and the page links
+// fetch the same page in the background and swap only the results. The
+// address follows, so the back button and a reload give the same list.
+Alpine.data('liveList', (target) => ({
+    loading: false,
+    syncing: false,
+    form: null,
+    request: null,
+    timer: null,
+    init() {
+        const form = (this.form = this.$el.querySelector('form[data-live]'));
+        if (form) {
+            form.addEventListener('submit', (event) => {
+                event.preventDefault();
+                this.load(this.urlOf(form));
+            });
+            form.addEventListener('input', (event) => {
+                if (!event.target.matches('input')) return;
+                clearTimeout(this.timer);
+                // Typing replaces the address instead of adding a step to the history.
+                this.timer = setTimeout(() => this.load(this.urlOf(form), { replace: true }), 300);
+            });
+            form.addEventListener('change', (event) => {
+                if (event.target.matches('select') && !this.syncing) this.load(this.urlOf(form));
+            });
+        }
+        this.$el.addEventListener('click', (event) => {
+            // Page links, and links that change a filter (tabs): data-live-pages / data-live-link.
+            const link = event.target.closest('[data-live-pages] a[href], a[data-live-link]');
+            if (!link || event.metaKey || event.ctrlKey || event.shiftKey) return;
+            event.preventDefault();
+            // A filter link (tab, "clear filters") also resets the form to its address.
+            this.load(link.href, { scroll: link.matches('[data-live-pages] a'), fill: true });
+        });
+        window.addEventListener('popstate', () => {
+            this.fill(form);
+            this.load(location.href, { history: false });
+        });
+    },
+    // Puts the values of the address back in the form (back and forward buttons).
+    fill(form) {
+        if (!form) return;
+        const params = new URL(location.href).searchParams;
+        this.syncing = true;
+        form.querySelectorAll('input[name], select[name]').forEach((field) => {
+            if (field.type === 'hidden') return;
+            field.value = params.get(field.name) ?? '';
+            if (field.tagName === 'SELECT') field.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+        this.syncing = false;
+    },
+    urlOf(form) {
+        const url = new URL(form.getAttribute('action') || location.pathname, location.href);
+        new FormData(form).forEach((value, key) => {
+            if (value !== '') url.searchParams.set(key, value);
+        });
+        return url.toString();
+    },
+    async load(url, { scroll = false, history = true, fill = false, replace = false } = {}) {
+        this.request?.abort();
+        const request = (this.request = new AbortController());
+        this.loading = true;
+        try {
+            const response = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' }, signal: request.signal });
+            const page = new DOMParser().parseFromString(await response.text(), 'text/html');
+            for (const id of [target, ...(this.$el.dataset.liveAlso || '').split(' ').filter(Boolean)]) {
+                const fresh = page.getElementById(id);
+                const current = document.getElementById(id);
+                if (!fresh || !current) {
+                    location.href = url;
+                    return;
+                }
+                current.replaceWith(fresh);
+            }
+            if (history && url !== location.href) window.history[replace ? 'replaceState' : 'pushState']({}, '', url);
+            if (fill) this.fill(this.form);
+            if (scroll) this.$el.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        } catch (error) {
+            if (error.name !== 'AbortError') location.href = url;
+        } finally {
+            if (this.request === request) this.loading = false;
+        }
+    },
+}));
+
 /* ---------------------------------------------------- Settings sections */
 
 // A settings card shows its values; "Edit" reveals its fields. Cancel puts

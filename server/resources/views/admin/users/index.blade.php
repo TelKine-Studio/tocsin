@@ -32,16 +32,19 @@
         </section>
     @endif
 
-    <div class="card overflow-hidden">
-        <form method="GET" class="flex items-center gap-3 border-b border-zinc-100 p-4 sm:px-6 dark:border-zinc-800">
+    <div class="card overflow-hidden" x-data="liveList('user-results')" data-live-also="user-count">
+        <form method="GET" data-live class="flex items-center gap-3 border-b border-zinc-100 p-4 sm:px-6 dark:border-zinc-800">
             <div class="relative w-full max-w-sm">
                 <x-ui.icon name="search" class="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-zinc-400" />
-                <input type="search" name="q" value="{{ $search }}" placeholder="{{ __('Search by name or email…') }}" class="form-control pl-10">
+                <x-ui.icon name="refresh" class="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 animate-spin text-zinc-400" x-show="loading" x-cloak />
+                <input type="search" name="q" autocomplete="off" value="{{ $search }}" placeholder="{{ __('Search by name or email…') }}" class="form-control pl-10">
             </div>
-            <span class="ml-auto hidden text-sm text-zinc-500 sm:block">
+            <span id="user-count" class="ml-auto hidden text-sm text-zinc-500 sm:block">
                 {{ trans_choice(':count user|:count users', $users->total()) }}@if ($invitations->isNotEmpty()) · {{ trans_choice(':count pending|:count pending', $invitations->count()) }}@endif
             </span>
         </form>
+
+        <div id="user-results" class="transition-opacity" :class="loading && 'opacity-60'">
 
         <ul class="divide-y divide-zinc-100 dark:divide-zinc-800">
             {{-- Pending activations --}}
@@ -101,7 +104,8 @@
             <x-ui.empty icon="users" :title="__('No user matches your search')" />
         @endif
         @if ($users->hasPages())
-            <div class="border-t border-zinc-100 px-6 py-4 dark:border-zinc-800">{{ $users->links() }}</div>
+            <div data-live-pages class="border-t border-zinc-100 px-6 py-4 dark:border-zinc-800">{{ $users->links() }}</div>
         @endif
+        </div>
     </div>
 </x-layouts.app>

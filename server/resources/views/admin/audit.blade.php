@@ -1,17 +1,22 @@
 <x-layouts.app :title="__('Audit log')">
     <x-ui.page-header :title="__('Audit log')" :description="__('Who did what on this instance: sign-ins, members, keys and settings. Kept :days days.', ['days' => App\Models\AuditLog::RETENTION_DAYS])" />
 
-    <div class="card">
-        <form method="GET" class="flex flex-col gap-3 border-b border-zinc-100 p-4 sm:flex-row sm:items-center sm:px-6 dark:border-zinc-800">
+    <div class="card" x-data="liveList('audit-results')" data-live-also="audit-clear">
+        <form method="GET" data-live class="flex flex-col gap-3 border-b border-zinc-100 p-4 sm:flex-row sm:items-center sm:px-6 dark:border-zinc-800">
             <div class="relative w-full sm:max-w-sm">
                 <x-ui.icon name="search" class="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-zinc-400" />
-                <input type="search" name="q" value="{{ $search }}" placeholder="{{ __('Search by person, name or IP…') }}" class="form-control pl-10">
+                <x-ui.icon name="refresh" class="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 animate-spin text-zinc-400" x-show="loading" x-cloak />
+                <input type="search" name="q" autocomplete="off" value="{{ $search }}" placeholder="{{ __('Search by person, name or IP…') }}" class="form-control pl-10">
             </div>
-            <x-ui.select name="action" :options="$groups" :value="$action" onchange="this.form.submit()" class="sm:w-60" />
+            <x-ui.select name="action" :options="$groups" :value="$action" class="sm:w-60" />
+            <span id="audit-clear" class="sm:ml-auto">
             @if ($search !== '' || $action !== '')
-                <a href="{{ route('admin.audit') }}" class="text-sm font-medium text-zinc-500 hover:text-zinc-900 sm:ml-auto dark:hover:text-white">{{ __('Clear filters') }}</a>
+                <a data-live-link href="{{ route('admin.audit') }}" class="text-sm font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-white">{{ __('Clear filters') }}</a>
             @endif
+            </span>
         </form>
+
+        <div id="audit-results" class="transition-opacity" :class="loading && 'opacity-60'">
 
         @forelse ($days as $day => $entries)
             @php($date = \Illuminate\Support\Carbon::parse($day))
@@ -70,7 +75,8 @@
         @endforelse
 
         @if ($logs->hasPages())
-            <div class="px-6 py-4">{{ $logs->links() }}</div>
+            <div data-live-pages class="px-6 py-4">{{ $logs->links() }}</div>
         @endif
+        </div>
     </div>
 </x-layouts.app>

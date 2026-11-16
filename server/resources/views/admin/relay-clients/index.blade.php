@@ -16,14 +16,16 @@
         </section>
     @endif
 
-    <div class="card overflow-hidden">
-        <form method="GET" class="border-b border-zinc-100 p-4 sm:px-6 dark:border-zinc-800">
+    <div class="card overflow-hidden" x-data="liveList('client-results')">
+        <form method="GET" data-live class="border-b border-zinc-100 p-4 sm:px-6 dark:border-zinc-800">
             <div class="relative max-w-sm">
                 <x-ui.icon name="search" class="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-zinc-400" />
-                <input type="search" name="q" value="{{ $search }}" placeholder="{{ __('Search by name, URL or email…') }}" class="form-control pl-10">
+                <x-ui.icon name="refresh" class="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 animate-spin text-zinc-400" x-show="loading" x-cloak />
+                <input type="search" name="q" autocomplete="off" value="{{ $search }}" placeholder="{{ __('Search by name, URL or email…') }}" class="form-control pl-10">
             </div>
         </form>
 
+        <div id="client-results" class="transition-opacity" :class="loading && 'opacity-60'">
         @forelse ($clients as $client)
             @php
                 $limit = $client->effectiveDailyLimit();
@@ -85,7 +87,8 @@
         @endforelse
 
         @if ($clients->hasPages())
-            <div class="border-t border-zinc-100 px-6 py-4 dark:border-zinc-800">{{ $clients->links() }}</div>
+            <div data-live-pages class="border-t border-zinc-100 px-6 py-4 dark:border-zinc-800">{{ $clients->links() }}</div>
         @endif
+        </div>
     </div>
 </x-layouts.app>

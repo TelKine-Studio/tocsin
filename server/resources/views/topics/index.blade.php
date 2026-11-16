@@ -5,20 +5,23 @@
         @endcan
     </x-ui.page-header>
 
+    <div x-data="liveList('topic-results')" data-live-also="topic-tabs topic-visibility">
     <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div class="inline-flex rounded-xl border border-zinc-200 bg-white p-1 shadow-xs dark:border-zinc-800 dark:bg-zinc-900">
+        <div id="topic-tabs" class="inline-flex rounded-xl border border-zinc-200 bg-white p-1 shadow-xs dark:border-zinc-800 dark:bg-zinc-900">
             @foreach (['' => __('All'), 'public' => __('Public'), 'private' => __('Private')] as $value => $label)
-                <a href="{{ route('topics.index', array_filter(['q' => $search, 'visibility' => $value])) }}"
+                <a data-live-link href="{{ route('topics.index', array_filter(['q' => $search, 'visibility' => $value])) }}"
                     @class(['rounded-lg px-3.5 py-1.5 text-sm font-medium transition', 'bg-zinc-900 text-white shadow-sm dark:bg-white dark:text-zinc-900' => ($visibility?->value ?? '') === $value, 'text-zinc-500 hover:text-zinc-900 dark:hover:text-white' => ($visibility?->value ?? '') !== $value])>{{ $label }}</a>
             @endforeach
         </div>
-        <form method="GET" class="relative w-full sm:max-w-xs">
-            @if ($visibility)<input type="hidden" name="visibility" value="{{ $visibility->value }}">@endif
+        <form method="GET" data-live class="relative w-full sm:max-w-xs">
+            <span id="topic-visibility">@if ($visibility)<input type="hidden" name="visibility" value="{{ $visibility->value }}">@endif</span>
+            <x-ui.icon name="refresh" class="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 animate-spin text-zinc-400" x-show="loading" x-cloak />
             <x-ui.icon name="search" class="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-zinc-400" />
-            <input type="search" name="q" value="{{ $search }}" placeholder="{{ __('Search topics…') }}" class="form-control pl-10">
+            <input type="search" name="q" autocomplete="off" value="{{ $search }}" placeholder="{{ __('Search topics…') }}" class="form-control pl-10">
         </form>
     </div>
 
+    <div id="topic-results" class="transition-opacity" :class="loading && 'opacity-60'">
     @if ($topics->isEmpty())
         <div class="card">
             @if ($search || $visibility)
@@ -58,7 +61,9 @@
             @endforeach
         </div>
         @if ($topics->hasPages())
-            <div class="mt-8">{{ $topics->links() }}</div>
+            <div data-live-pages class="mt-8">{{ $topics->links() }}</div>
         @endif
     @endif
+    </div>
+    </div>
 </x-layouts.app>
