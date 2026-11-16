@@ -4,7 +4,23 @@
         <form method="POST" action="{{ route('admin.settings.mail') }}" x-data="{ mailer: @js(old('mailer', $settings->string('mail.mailer'))) }">
             @csrf
             @method('PUT')
-            <x-ui.card :title="__('Outgoing email')" :description="__('Used for invitations and password resets.')" icon="mail">
+            @php($mailer = $settings->string('mail.mailer'))
+            <x-settings.section :title="__('Outgoing email')" :description="__('Used for invitations and password resets.')" icon="mail"
+                :fields="['mailer', 'resend_key', 'host', 'port', 'scheme', 'username', 'password', 'from_address', 'from_name']">
+                <x-slot:summary>
+                    <x-settings.summary>
+                        <x-settings.value :label="__('Sending method')" :value="['log' => __('Disabled (written to the log)'), 'resend' => 'Resend', 'smtp' => __('SMTP server')][$mailer] ?? $mailer" />
+                        @if ($mailer === 'smtp')
+                            <x-settings.value :label="__('Server')" :value="$settings->get('mail.host') ? $settings->get('mail.host').($settings->get('mail.port') ? ':'.$settings->get('mail.port') : '') : null" mono />
+                            <x-settings.value :label="__('Username')" :value="$settings->get('mail.username')" />
+                        @elseif ($mailer === 'resend')
+                            <x-settings.value :label="__('Resend API key')" :value="$settings->get('mail.resend_key') ? __('Stored (encrypted)') : null" />
+                        @endif
+                        @if ($mailer !== 'log')
+                            <x-settings.value :label="__('Sender')" :value="trim(($settings->get('mail.from_name') ?: $settings->string('app.name')).' <'.($settings->get('mail.from_address') ?: '…').'>')" />
+                        @endif
+                    </x-settings.summary>
+                </x-slot:summary>
                 <div class="space-y-5">
                     <div class="grid gap-3 sm:grid-cols-3">
                         @foreach ([
@@ -51,8 +67,7 @@
                         </div>
                     </div>
                 </div>
-                <x-slot:footer><x-ui.button>{{ __('Save') }}</x-ui.button></x-slot:footer>
-            </x-ui.card>
+            </x-settings.section>
         </form>
 
         <x-ui.card :title="__('Test')" icon="send">

@@ -255,6 +255,40 @@ Alpine.data('datePicker', (withTime = false, min = null) => ({
 // Drives components/ui/select.blade.php: a styled listbox in front of a
 // hidden native <select> (which still holds the value for forms, x-model
 // and onchange handlers).
+/* ---------------------------------------------------- Settings sections */
+
+// A settings card shows its values; "Edit" reveals its fields. Cancel puts
+// the fields back as they were, so the rest of the form posts them unchanged.
+Alpine.data('settingsSection', (open = false) => ({
+    editing: open,
+    edit() {
+        this.editing = true;
+        this.$nextTick(() => this.$refs.fields?.querySelector('input:not([type=hidden]):not([disabled]):not(.sr-only), textarea')?.focus());
+    },
+    cancel() {
+        this.$refs.fields.querySelectorAll('input, textarea, select').forEach((field) => {
+            if (field.type === 'checkbox' || field.type === 'radio') {
+                if (field.checked === field.defaultChecked) return;
+                field.checked = field.defaultChecked;
+                field.dispatchEvent(new Event('change', { bubbles: true }));
+            } else if (field.tagName === 'SELECT') {
+                const initial = [...field.options].find((option) => option.defaultSelected) ?? field.options[0];
+                if (!initial || field.value === initial.value) return;
+                field.value = initial.value;
+                field.dispatchEvent(new Event('change', { bubbles: true }));
+            } else if (field.type === 'file') {
+                if (!field.value) return;
+                field.value = '';
+                field.dispatchEvent(new Event('change', { bubbles: true }));
+            } else if (field.value !== field.defaultValue) {
+                field.value = field.defaultValue;
+                field.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        });
+        this.editing = false;
+    },
+}));
+
 Alpine.data('selectBox', () => ({
     open: false,
     value: '',

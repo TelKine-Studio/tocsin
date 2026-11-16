@@ -172,7 +172,20 @@
             <form method="POST" action="{{ route('admin.settings.push') }}" enctype="multipart/form-data">
                 @csrf
                 @method('PUT')
-                <x-ui.card :title="__('Apple Push Notification service')" :description="__('Token-based authentication with a .p8 key from your Apple Developer account.')" icon="key">
+                <x-settings.section :title="__('Apple Push Notification service')" :description="__('Token-based authentication with a .p8 key from your Apple Developer account.')" icon="key"
+                    :empty="! $settings->get('apns.private_key')" :fields="['team_id', 'key_id', 'bundle_id', 'private_key', 'private_key_file']">
+                    <x-slot:summary>
+                        @if ($settings->get('apns.private_key'))
+                            <x-settings.summary>
+                                <x-settings.value :label="__('Team ID')" :value="$settings->get('apns.team_id')" mono />
+                                <x-settings.value :label="__('Key ID')" :value="$settings->get('apns.key_id')" mono />
+                                <x-settings.value :label="__('Bundle ID of the app')" :value="$settings->string('apns.bundle_id')" mono />
+                                <x-settings.value :label="__('Private key (.p8)')" :value="__('Stored (encrypted)')" />
+                            </x-settings.summary>
+                        @else
+                            <p class="text-sm text-zinc-500 dark:text-zinc-400">{{ __('Add your Apple key to send notifications to iPhone and iPad.') }}</p>
+                        @endif
+                    </x-slot:summary>
                     <div class="space-y-5">
                         <div class="grid gap-5 sm:grid-cols-2">
                             <x-ui.input name="team_id" :label="__('Team ID')" :value="$settings->get('apns.team_id')" required maxlength="10" placeholder="ABCDE12345" :hint="__('Apple Developer → Membership details.')" />
@@ -201,22 +214,27 @@
                             @error('private_key')<p class="flex items-center gap-1.5 text-sm text-red-600 dark:text-red-400"><x-ui.icon name="alert" class="size-3.5" />{{ $message }}</p>@enderror
                         </div>
                     </div>
-                    <x-slot:footer><x-ui.button>{{ __('Save') }}</x-ui.button></x-slot:footer>
-                </x-ui.card>
+                </x-settings.section>
             </form>
 
             <form method="POST" action="{{ route('admin.settings.push.fcm') }}" enctype="multipart/form-data">
                 @csrf
                 @method('PUT')
-                <x-ui.card :title="__('Android (Firebase Cloud Messaging)')" :description="__('Service account key of the Firebase project of your Android build (Project settings → Service accounts → Generate new private key).')" icon="smartphone">
-                    <x-slot:actions>
-                        @if ($settings->fcmConfigured())
-                            <x-ui.badge color="green" icon="check">{{ json_decode($settings->get('fcm.service_account'), true)['project_id'] ?? '' }}</x-ui.badge>
+                @php($fcm = $settings->fcmConfigured() ? (json_decode($settings->get('fcm.service_account'), true) ?: []) : null)
+                <x-settings.section :title="__('Android (Firebase Cloud Messaging)')" :description="__('Service account key of the Firebase project of your Android build (Project settings → Service accounts → Generate new private key).')" icon="smartphone"
+                    :empty="! $fcm" :fields="['service_account']" :edit-label="$fcm ? __('Replace') : null">
+                    <x-slot:summary>
+                        @if ($fcm)
+                            <x-settings.summary>
+                                <x-settings.value :label="__('Firebase project')" :value="$fcm['project_id'] ?? null" mono />
+                                <x-settings.value :label="__('Service account')" :value="$fcm['client_email'] ?? null" mono />
+                            </x-settings.summary>
+                        @else
+                            <p class="text-sm text-zinc-500 dark:text-zinc-400">{{ __('Add the key of your Firebase project to send notifications to Android phones.') }}</p>
                         @endif
-                    </x-slot:actions>
+                    </x-slot:summary>
                     <x-ui.file name="service_account" accept=".json,application/json" :label="__('Service account (JSON)')" :placeholder="__('Choose the JSON file')" required />
-                    <x-slot:footer><x-ui.button>{{ __('Save') }}</x-ui.button></x-slot:footer>
-                </x-ui.card>
+                </x-settings.section>
             </form>
 
             <x-ui.card :title="__('How to get a key')" icon="book">

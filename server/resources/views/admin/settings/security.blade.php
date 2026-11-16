@@ -4,13 +4,32 @@
         <form method="POST" action="{{ route('admin.settings.security') }}" class="space-y-6" x-data="{ sso: {{ old('sso_enabled', $settings->boolean('sso.enabled')) ? 'true' : 'false' }} }">
             @csrf
             @method('PUT')
-            <x-ui.card :title="__('Two-factor authentication')" icon="shield">
+            <x-settings.section :title="__('Two-factor authentication')" icon="shield" :fields="['require_2fa_admins']">
+                <x-slot:summary>
+                    <x-settings.summary :columns="1">
+                        <x-settings.value :label="__('Required for administrators')" :on="$settings->boolean('security.require_2fa_admins')" :value="__('Yes')" :empty="__('No')" />
+                    </x-settings.summary>
+                </x-slot:summary>
                 <x-ui.toggle name="require_2fa_admins" :checked="$settings->boolean('security.require_2fa_admins')" :label="__('Required for administrators')"
                     :description="__('Administrators without two-factor authentication cannot open the administration until they enable it.')" />
                 @error('require_2fa_admins')<p class="mt-2 text-sm text-red-600">{{ $message }}</p>@enderror
-            </x-ui.card>
+            </x-settings.section>
 
-            <x-ui.card :title="__('Single sign-on (OpenID Connect)')" :description="__('Let people log in with Google Workspace, Microsoft Entra ID, Keycloak, Authentik, Okta…')" icon="key">
+            <x-settings.section :title="__('Single sign-on (OpenID Connect)')" :description="__('Let people log in with Google Workspace, Microsoft Entra ID, Keycloak, Authentik, Okta…')" icon="key"
+                :fields="['sso_enabled', 'sso_label', 'sso_issuer', 'sso_client_id', 'sso_client_secret', 'sso_auto_create', 'sso_allowed_domains']">
+                <x-slot:summary>
+                    <x-settings.summary>
+                        <x-settings.value :label="__('Single sign-on')" :on="$settings->boolean('sso.enabled')" wide />
+                        @if ($settings->boolean('sso.enabled'))
+                            <x-settings.value :label="__('Button label')" :value="$settings->get('sso.label')" />
+                            <x-settings.value :label="__('Issuer URL')" :value="$settings->get('sso.issuer')" mono />
+                            <x-settings.value :label="__('Client ID')" :value="$settings->get('sso.client_id')" mono />
+                            <x-settings.value :label="__('Client secret')" :value="$settings->get('sso.client_secret') ? __('Stored (encrypted)') : null" />
+                            <x-settings.value :label="__('Create accounts automatically')" :on="$settings->boolean('sso.auto_create')" :value="__('Yes')" :empty="__('No')" />
+                            <x-settings.value :label="__('Allowed email domains')" :value="$settings->get('sso.allowed_domains')" :empty="__('Any domain')" />
+                        @endif
+                    </x-settings.summary>
+                </x-slot:summary>
                 <div class="space-y-5">
                     <x-ui.toggle name="sso_enabled" :checked="$settings->boolean('sso.enabled')" :label="__('Enable single sign-on')" x-model="sso" />
                     <div x-show="sso" x-collapse class="space-y-5">
@@ -34,8 +53,7 @@
                             :hint="__('Comma separated. Empty: any domain accepted by the provider.')" />
                     </div>
                 </div>
-                <x-slot:footer><x-ui.button>{{ __('Save') }}</x-ui.button></x-slot:footer>
-            </x-ui.card>
+            </x-settings.section>
         </form>
     </x-settings.layout>
 </x-layouts.app>
