@@ -18,7 +18,7 @@ class Audit
      */
     public static function log(string $action, ?Model $subject = null, array $metadata = [], ?User $user = null): void
     {
-        $request = app()->runningInConsole() ? null : request();
+        $request = app()->runningInConsole() && ! app()->runningUnitTests() ? null : request();
 
         try {
             AuditLog::create([

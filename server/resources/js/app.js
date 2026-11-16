@@ -282,10 +282,39 @@ Alpine.data('selectBox', () => ({
     show() {
         this.open = true;
         this.active = Math.max(0, this.options.findIndex((option) => option.value === this.value));
-        this.$nextTick(() => this.reveal());
+        this.$nextTick(() => {
+            this.place();
+            this.reveal();
+        });
+        // The list floats above the page (cards may clip their content): it follows
+        // the button while the page scrolls or resizes.
+        this.follow = () => (this.open ? this.place() : null);
+        window.addEventListener('scroll', this.follow, true);
+        window.addEventListener('resize', this.follow);
     },
     close() {
         this.open = false;
+        window.removeEventListener('scroll', this.follow, true);
+        window.removeEventListener('resize', this.follow);
+    },
+    place() {
+        const list = this.$refs.list;
+        const box = this.$refs.button.getBoundingClientRect();
+        const gap = 6;
+        const below = window.innerHeight - box.bottom - gap - 8;
+        const above = box.top - gap - 8;
+        const height = Math.min(list.scrollHeight, 256);
+        const up = below < height && above > below;
+
+        Object.assign(list.style, {
+            position: 'fixed',
+            left: `${box.left}px`,
+            width: `${box.width}px`,
+            marginTop: '0',
+            maxHeight: `${Math.max(120, Math.min(256, up ? above : below))}px`,
+            top: up ? 'auto' : `${box.bottom + gap}px`,
+            bottom: up ? `${window.innerHeight - box.top + gap}px` : 'auto',
+        });
     },
     move(step) {
         if (!this.open) return this.show();

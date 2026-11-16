@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\CloudflareClientIp;
 use App\Http\Middleware\EnsureApplicationIsInstalled;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\SetLocale;
@@ -25,6 +26,7 @@ $app = Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         // Tocsin is meant to run behind a reverse proxy (Coolify / Traefik, ...).
         $middleware->trustProxies(at: '*');
+        $middleware->append(CloudflareClientIp::class);
 
         $middleware->web(append: [
             EnsureApplicationIsInstalled::class,

@@ -33,8 +33,9 @@ class AccessTokenController extends Controller
 
     public function destroy(Request $request, int $token): RedirectResponse
     {
+        $name = $request->user()->tokens()->whereKey($token)->value('name');
         $request->user()->tokens()->whereKey($token)->delete();
-        Audit::log('token.revoked', $request->user(), ['token' => $token]);
+        Audit::log('token.revoked', $request->user(), ['token' => $token, 'name' => $name]);
 
         return back()->with('status', __('Token revoked.'));
     }

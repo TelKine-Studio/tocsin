@@ -117,8 +117,31 @@ class SecurityTest extends TestCase
 
         $this->assertEqualsCanonicalizing(['auth.login_failed', 'auth.login', 'topic.created'], AuditLog::pluck('action')->all());
 
-        $this->actingAs($admin)->get('/admin/audit')->assertOk()->assertSee(__('Failed login'));
+        $this->actingAs($admin)->get('/admin/audit')->assertOk()
+            ->assertSee('Failed sign-in for', false)
+            ->assertSee('created the topic', false)
+            ->assertSee('audited')
+            ->assertSee('Private');
+        $this->actingAs($admin)->get('/admin/audit?action=topic')->assertOk()->assertDontSee('Failed sign-in for', false);
         $this->actingAs(User::factory()->create())->get('/admin/audit')->assertForbidden();
+    }
+
+    public function test_the_visitor_address_is_read_from_cloudflare_only_when_it_comes_from_cloudflare(): void
+    {
+        User::factory()->create(['email' => 'ada@example.com']);
+
+        // Through Cloudflare: the edge server's address is replaced by the visitor's.
+        $this->withServerVariables(['REMOTE_ADDR' => '172.71.126.61'])
+            ->withHeader('CF-Connecting-IP', '41.202.10.20')
+            ->post('/login', ['email' => 'ada@example.com', 'password' => 'password']);
+        $this->assertSame('41.202.10.20', AuditLog::where('action', 'auth.login')->value('ip_address'));
+
+        // Straight to the server: the header is forged and ignored.
+        auth()->logout();
+        $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.7'])
+            ->withHeader('CF-Connecting-IP', '1.2.3.4')
+            ->post('/login', ['email' => 'ada@example.com', 'password' => 'wrong']);
+        $this->assertSame('203.0.113.7', AuditLog::where('action', 'auth.login_failed')->value('ip_address'));
     }
 
     public function test_two_factor_can_be_required_for_admins(): void
