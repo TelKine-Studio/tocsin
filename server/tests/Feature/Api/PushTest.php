@@ -146,6 +146,27 @@ class PushTest extends TestCase
         $this->assertNotNull($device->fresh()->last_push_at);
     }
 
+    public function test_the_acknowledgement_notice_skips_the_excluded_devices(): void
+    {
+        $this->configureApns();
+        Http::fake(['*' => Http::response('', 200)]);
+
+        $topic = Topic::factory()->public()->create(['name' => 'alerts']);
+        $mine = Device::create(['token' => str_repeat('ab', 32), 'environment' => 'sandbox', 'platform' => 'ios']);
+        $theirs = Device::create(['token' => str_repeat('cd', 32), 'environment' => 'sandbox', 'platform' => 'ios']);
+        $topic->devices()->attach([$mine->id, $theirs->id]);
+
+        $message = Message::factory()->for($topic)->create(['body' => 'Server down', 'requires_ack' => true, 'acknowledged_at' => now(), 'acknowledged_name' => 'Awa', 'push_status' => 'sent']);
+
+        (new SendMessagePush($message, SendMessagePush::ACKNOWLEDGED, [$mine->id]))->handle(app(PushManager::class), app(Settings::class));
+
+        Http::assertSentCount(1);
+        Http::assertSent(fn (Request $request) => str_ends_with($request->url(), str_repeat('cd', 32))
+            && $request->data()['aps']['alert']['body'] === "✓ Acknowledged by Awa\nServer down"
+            && $request->data()['tocsin']['notice'] === SendMessagePush::ACKNOWLEDGED);
+        $this->assertSame('sent', $message->fresh()->push_status);
+    }
+
     public function test_invalid_tokens_are_forgotten(): void
     {
         $this->configureApns();

@@ -31,7 +31,11 @@ class SendMessagePush implements ShouldQueue
     /** Replaces the notification with "Acknowledged by …". */
     public const ACKNOWLEDGED = 'acknowledged';
 
-    public function __construct(public Message $message, public ?string $notice = null)
+    /**
+     * @param  list<int>  $except  Devices left out (e.g. those of whoever
+     *                             acknowledged the message).
+     */
+    public function __construct(public Message $message, public ?string $notice = null, public array $except = [])
     {
         $this->afterCommit();
     }
@@ -41,7 +45,7 @@ class SendMessagePush implements ShouldQueue
         $message = $this->message->loadMissing('topic');
         $topic = $message->topic;
         $gateway = $push->gateway();
-        $hasWeb = $topic->devices()->where('platform', 'web')->exists();
+        $hasWeb = $topic->devices()->where('platform', 'web')->whereNotIn('devices.id', $this->except)->exists();
 
         if (! $gateway->isConfigured() && ! $hasWeb) {
             $message->forceFill(['push_status' => 'disabled'])->save();
@@ -71,7 +75,9 @@ class SendMessagePush implements ShouldQueue
             'renotify' => $this->notice !== self::ACKNOWLEDGED,
         ];
 
-        $topic->devices()->with('user')->whereIn('platform', $platforms)->lazyById(100, 'devices.id')
+        $topic->devices()->with('user')->whereIn('platform', $platforms)
+            ->when($this->except !== [], fn ($query) => $query->whereNotIn('devices.id', $this->except))
+            ->lazyById(100, 'devices.id')
             ->filter(fn (Device $device) => $device->canReceive($topic))
             ->chunk(100)
             ->each(function ($devices) use ($gateway, $payload, $headers, &$sent, &$failed, &$quota, &$targets, &$errors) {

@@ -2,6 +2,16 @@
 
 All notable changes to Tocsin are documented here. The format follows [Keep a Changelog](https://keepachangelog.com) and the project uses [Semantic Versioning](https://semver.org).
 
+## [Unreleased]
+
+### Server
+- **Acknowledgement groups** (`X-Ack-Group`, `ack_group` in JSON): the messages of one event published in several topics, even of different accounts, are acknowledged together, and each topic's subscribers are told.
+- The "Acknowledged by …" notification is no longer sent to whoever acknowledged, and recalls the message (excerpt) it is about.
+
+### Apps
+- Tapping a notification opens its message: the list scrolls to it and highlights it.
+- Acknowledging from a device clears its notification there, and the device is no longer told about its own acknowledgement.
+
 ## [0.1.0] - 2026-11-14
 
 First public release, published by [Telkine](https://github.com/TelKine-Studio).

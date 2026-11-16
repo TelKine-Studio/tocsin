@@ -78,6 +78,7 @@ class MessageController extends Controller
             'click' => $field('click', ['X-Click', 'Click']),
             'collapse' => $field('collapse', ['X-Collapse', 'Collapse']),
             'ack' => $field('ack', ['X-Ack', 'Ack']),
+            'ack_group' => $field('ack_group', ['X-Ack-Group', 'Ack-Group']),
         ];
     }
 }

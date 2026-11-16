@@ -20,6 +20,9 @@ class PushPayload
     /** APNs refuses payloads larger than 4 KB. */
     protected const MAX_BODY_BYTES = 2500;
 
+    /** Excerpt of the message recalled by the "Acknowledged by …" notice. */
+    protected const ACK_EXCERPT_LENGTH = 140;
+
     /** @return array<string, mixed> */
     public static function forMessage(Message $message, string $serverUrl, ?string $notice = null): array
     {
@@ -35,8 +38,9 @@ class PushPayload
             : array_filter([
                 'title' => $hasTitle ? $message->title : $topic->label(),
                 'subtitle' => $hasTitle ? $topic->label() : null,
+                // "✓ Acknowledged by Awa", then the message it is about.
                 'body' => $acknowledged
-                    ? '✓ '.$message->acknowledgementLabel()
+                    ? '✓ '.$message->acknowledgementLabel()."\n".Str::limit(preg_replace('/\s+/u', ' ', $message->body), self::ACK_EXCERPT_LENGTH)
                     : $count.Str::limit($message->body, self::MAX_BODY_BYTES),
             ]);
 
@@ -80,6 +84,9 @@ class PushPayload
                 'actions' => $confidential ? null : ($actions ?: null),
                 'fetch' => $confidential && ! $acknowledged ? 1 : null,
                 'ack' => $message->awaitsAcknowledgement() && ! $acknowledged ? 1 : null,
+                // The notification is about the message, it is not the
+                // message itself: the apps open it without storing this text.
+                'notice' => $notice,
             ], fn ($value) => $value !== null),
         ];
     }
@@ -109,6 +116,7 @@ class PushPayload
             'fetch' => $tocsin['fetch'] ?? null,
             'actions' => isset($tocsin['actions']) ? json_encode($tocsin['actions']) : null,
             'ack' => $tocsin['ack'] ?? null,
+            'notice' => $tocsin['notice'] ?? null,
         ], fn ($v) => $v !== null));
     }
 

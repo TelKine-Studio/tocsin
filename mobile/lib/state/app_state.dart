@@ -77,6 +77,20 @@ class AppState extends ChangeNotifier {
   /// Subscription currently displayed: its messages are marked as read.
   String? openSubscriptionId;
 
+  /// Message to bring into view once its topic is shown: the one of a
+  /// tapped notification. Consumed by the topic screen.
+  ({String subscriptionId, int messageId})? focusRequest;
+
+  /// Takes the pending focus request of [subscriptionId], if any.
+  int? takeFocus(String subscriptionId) {
+    final request = focusRequest;
+    if (request == null || request.subscriptionId != subscriptionId) {
+      return null;
+    }
+    focusRequest = null;
+    return request.messageId;
+  }
+
   Future<void> init() async {
     servers = await storage.loadServers();
     subscriptions = await storage.loadSubscriptions();
@@ -489,6 +503,12 @@ class AppState extends ChangeNotifier {
     final subscription = subscriptionFor(server, topic);
     if (subscription == null) return null;
 
+    final messageId = int.tryParse('${payload['id'] ?? ''}');
+    if (messageId != null) {
+      focusRequest = (subscriptionId: subscription.id, messageId: messageId);
+      notifyListeners();
+    }
+
     final message = TopicMessage.fromNotification(payload);
     if (message != null) {
       final fresh = await storage.addMissingMessages(subscription.id, [
@@ -588,29 +608,41 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Acknowledges [message] as the signed-in user (or as this device).
-  /// Returns null on success, or an error message.
+  /// Acknowledges message [messageId] as the signed-in user (or as this
+  /// device). Returns null on success, or an error message.
   Future<String?> acknowledge(
     String subscriptionId,
-    MessageAction action,
-  ) async {
+    MessageAction action, {
+    int? messageId,
+  }) async {
     final subscription = this.subscription(subscriptionId);
     if (subscription == null) return null;
     final error = await ActionRunner().run(
       action,
       headers: await ackHeaders(subscription.serverUrl),
     );
+    if (error == null && messageId != null) {
+      // The server tells the others, not this device: its alert goes away.
+      unawaited(
+        push
+            .removeDelivered(subscription.topic, id: messageId)
+            .catchError((_) {}),
+      );
+    }
     await refresh(subscriptionId);
     return error;
   }
 
   /// Identifies who acknowledges: the account token, or the device name.
+  /// The push token keeps this device from being told about it.
   Future<Map<String, String>> ackHeaders(String serverUrl) async {
     final token = await storage.token(serverUrl);
+    final device = push.token?.token;
     return {
       'Accept': 'application/json',
       if (token != null) 'Authorization': 'Bearer $token',
       'X-Name': await push.deviceName(),
+      'X-Device-Token': ?device,
     };
   }
 

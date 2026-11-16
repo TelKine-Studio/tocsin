@@ -459,6 +459,9 @@ class TopicMessage {
   /// display it before syncing with the server. Null if the notification
   /// does not carry it (e.g. older servers).
   static TopicMessage? fromNotification(Map<String, dynamic> payload) {
+    // A notice about the message ("Acknowledged by …"), not its content.
+    if (payload['notice'] != null) return null;
+
     final id = int.tryParse('${payload['id'] ?? ''}');
     final message = payload['message'];
     if (id == null || message is! Map || message['body'] == null) return null;

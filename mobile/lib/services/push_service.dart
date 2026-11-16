@@ -88,10 +88,14 @@ class PushService {
     return await _channel.invokeMethod<String>('deviceName') ?? 'iPhone';
   }
 
-  /// Removes the notifications of a topic from the notification center.
-  Future<void> removeDelivered(String topic) async {
+  /// Removes the notifications of a topic (or of one of its messages,
+  /// given its [id]) from the notification center.
+  Future<void> removeDelivered(String topic, {int? id}) async {
     if (!isSupported) return;
-    await _channel.invokeMethod('removeDelivered', {'thread': topic});
+    await _channel.invokeMethod('removeDelivered', {
+      'thread': topic,
+      'id': ?id,
+    });
   }
 
   /// Shares the access token of a server with the notification extension,

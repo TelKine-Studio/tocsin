@@ -15,7 +15,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 
-#[Fillable(['topic_id', 'user_id', 'title', 'body', 'priority', 'tags', 'click_url', 'actions', 'icon_url', 'attachment_url', 'attachment_name', 'attachment_type', 'attachment_size', 'attachment_path', 'scheduled_at', 'dispatched_at', 'push_status', 'push_failed', 'push_error', 'collapse_key', 'occurrences', 'repeats', 'last_seen_at', 'requires_ack', 'acknowledged_at', 'acknowledged_by', 'acknowledged_name', 'escalation_level', 'next_escalation_at'])]
+#[Fillable(['topic_id', 'user_id', 'title', 'body', 'priority', 'tags', 'click_url', 'actions', 'icon_url', 'attachment_url', 'attachment_name', 'attachment_type', 'attachment_size', 'attachment_path', 'scheduled_at', 'dispatched_at', 'push_status', 'push_failed', 'push_error', 'collapse_key', 'occurrences', 'repeats', 'last_seen_at', 'requires_ack', 'ack_group', 'acknowledged_at', 'acknowledged_by', 'acknowledged_name', 'escalation_level', 'next_escalation_at'])]
 class Message extends Model
 {
     /** Sends kept in the history of a grouped message. */
@@ -25,6 +25,14 @@ class Message extends Model
     use HasFactory, Prunable;
 
     public const UPDATED_AT = null;
+
+    /** Shortest accepted X-Ack-Group key: it must not be guessable. */
+    public const ACK_GROUP_MIN_LENGTH = 16;
+
+    public const ACK_GROUP_MAX_LENGTH = 200;
+
+    /** Messages of an acknowledgement group older than this are left alone. */
+    public const ACK_GROUP_WINDOW_DAYS = 7;
 
     /** "acknowledged_name" of alerts closed by their "resolved" notification. */
     public const RESOLVED = ':resolved';

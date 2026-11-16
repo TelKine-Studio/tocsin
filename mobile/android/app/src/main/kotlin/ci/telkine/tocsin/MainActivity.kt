@@ -40,8 +40,11 @@ class MainActivity : FlutterActivity() {
                 "deviceName" -> result.success("${Build.MANUFACTURER.replaceFirstChar { it.uppercase() }} ${Build.MODEL}")
                 "removeDelivered" -> {
                     val thread = call.argument<String>("thread")
+                    val id = call.argument<Int>("id")
                     val manager = getSystemService(NotificationManager::class.java)
-                    manager.activeNotifications.filter { thread == null || it.tag == thread }.forEach { manager.cancel(it.tag, it.id) }
+                    manager.activeNotifications
+                        .filter { (thread == null || it.tag == thread) && (id == null || it.id == id) }
+                        .forEach { manager.cancel(it.tag, it.id) }
                     result.success(null)
                 }
                 "saveSharedToken" -> {

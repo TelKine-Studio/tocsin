@@ -83,7 +83,13 @@ Future<void> _openFromPush(AppState state, Map<String, dynamic> payload) async {
     final subscription = state.subscriptionFor(server, topic);
     if (action.ack && subscription != null) {
       // Signed in: the server records who acknowledged.
-      unawaited(state.acknowledge(subscription.id, action));
+      unawaited(
+        state.acknowledge(
+          subscription.id,
+          action,
+          messageId: int.tryParse('${payload['id'] ?? ''}'),
+        ),
+      );
     } else {
       unawaited(ActionRunner().run(action));
     }

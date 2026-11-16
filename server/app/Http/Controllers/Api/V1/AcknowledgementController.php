@@ -11,7 +11,8 @@ use Illuminate\Http\Request;
 /**
  * POST /v1/messages/{message}/ack?signature=… — the "Acknowledge" button
  * of notifications. The signed URL is only sent to subscribed devices; an
- * optional token or password tells who acknowledged.
+ * optional token or password tells who acknowledged, and X-Device-Token
+ * (the push token of the device) keeps that device from being notified.
  */
 class AcknowledgementController extends Controller
 {
@@ -26,7 +27,14 @@ class AcknowledgementController extends Controller
         $user = $request->user();
         $name = $request->header('X-Name') ?? $request->input('name');
 
-        $acknowledged = $acknowledge->handle($message, $user && $message->topic->canRead($user) ? $user : null, is_string($name) ? $name : null);
+        $deviceToken = $request->header('X-Device-Token');
+
+        $acknowledged = $acknowledge->handle(
+            $message,
+            $user && $message->topic->canRead($user) ? $user : null,
+            is_string($name) ? $name : null,
+            is_string($deviceToken) ? $deviceToken : null,
+        );
 
         return response()->json([
             'acknowledged' => true,

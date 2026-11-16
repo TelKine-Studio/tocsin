@@ -37,8 +37,10 @@ class PublishMessage
      * Input keys: body, title, priority, tags, click, actions, icon, attach
      * (URL), filename, file (['contents' => string, 'name' => ?string,
      * 'type' => ?string]), delay, collapse (grouping key), ack (true / false
-     * to force or skip the acknowledgement) and resolves (collapse key of
-     * an alert this message closes).
+     * to force or skip the acknowledgement), ack_group (key shared by the
+     * messages of one event published in several topics: acknowledging
+     * one acknowledges them all) and resolves (collapse key of an alert
+     * this message closes).
      *
      * @param  array<string, mixed>  $input
      */
@@ -63,6 +65,7 @@ class PublishMessage
         $scheduledAt = $this->scheduledAt($input['delay'] ?? null);
         $hasFile = isset($input['file']) && is_array($input['file']) && ($input['file']['contents'] ?? '') !== '';
         $requiresAck = $this->requiresAcknowledgement($topic, $input['ack'] ?? null, (int) $data['priority']);
+        $ackGroup = $this->ackGroup($input['ack_group'] ?? null);
         $collapseKey = $this->collapseKey($topic, $normalized, $input['collapse'] ?? null, $hasFile || filled($data['attach'] ?? null));
 
         if (filled($input['resolves'] ?? null)) {
@@ -70,7 +73,7 @@ class PublishMessage
         }
 
         if ($scheduledAt === null && $collapseKey !== null && ($existing = $this->findGroup($topic, $collapseKey))) {
-            return $this->group($existing->setRelation('topic', $topic), $data, $normalized, $requiresAck);
+            return $this->group($existing->setRelation('topic', $topic), $data, $normalized, $requiresAck, $ackGroup);
         }
 
         // Hosted mode: grouped repeats above are free, new messages count.
@@ -90,6 +93,7 @@ class PublishMessage
             'scheduled_at' => $scheduledAt,
             'collapse_key' => $collapseKey,
             'requires_ack' => $requiresAck,
+            'ack_group' => $ackGroup,
         ]);
 
         $this->quota->record($topic);
@@ -114,7 +118,8 @@ class PublishMessage
     public function deliver(Message $message): void
     {
         $now = now();
-        $firstStep = $message->requires_ack ? ($message->topic->escalationSteps()[0] ?? null) : null;
+        $this->inheritAcknowledgement($message);
+        $firstStep = $message->awaitsAcknowledgement() ? ($message->topic->escalationSteps()[0] ?? null) : null;
 
         $message->forceFill([
             'dispatched_at' => $now,
@@ -131,6 +136,34 @@ class PublishMessage
             // The message is stored either way: clients that are not connected
             // in realtime fetch it with their next refresh.
             Log::warning('Unable to broadcast message', ['topic' => $message->topic->name, 'error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * A message of an acknowledgement group published after someone
+     * acknowledged the event elsewhere arrives already acknowledged: no
+     * button, no reminders.
+     */
+    protected function inheritAcknowledgement(Message $message): void
+    {
+        if ($message->ack_group === null || ! $message->awaitsAcknowledgement()) {
+            return;
+        }
+
+        $done = Message::query()
+            ->where('ack_group', $message->ack_group)
+            ->whereKeyNot($message->id)
+            ->whereNotNull('acknowledged_at')
+            ->where('created_at', '>=', now()->subDays(Message::ACK_GROUP_WINDOW_DAYS))
+            ->latest('acknowledged_at')
+            ->first();
+
+        if ($done) {
+            $message->forceFill([
+                'acknowledged_at' => $done->acknowledged_at,
+                'acknowledged_by' => $done->acknowledged_by,
+                'acknowledged_name' => $done->acknowledged_name,
+            ]);
         }
     }
 
@@ -177,7 +210,7 @@ class PublishMessage
      * @param  array<string, mixed>  $data
      * @param  array<string, mixed>  $normalized
      */
-    protected function group(Message $message, array $data, array $normalized, bool $requiresAck): Message
+    protected function group(Message $message, array $data, array $normalized, bool $requiresAck, ?string $ackGroup = null): Message
     {
         $priority = (int) $data['priority'];
         $raised = $priority > $message->priority->value;
@@ -204,6 +237,7 @@ class PublishMessage
             'click_url' => $data['click'] ?? $message->click_url,
             'actions' => $normalized['actions'] ?: $message->actions,
             'priority' => max($priority, $message->priority->value),
+            'ack_group' => $message->ack_group ?? $ackGroup,
         ]);
 
         // The alert became serious enough to require an acknowledgement.
@@ -242,6 +276,29 @@ class PublishMessage
         if ($firing) {
             $this->acknowledge->handle($firing->setRelation('topic', $topic), null, Message::RESOLVED);
         }
+    }
+
+    /**
+     * Stored form of the X-Ack-Group key: its SHA-256, so that the key
+     * itself, which links topics of different accounts, is never exposed.
+     */
+    protected function ackGroup(mixed $key): ?string
+    {
+        if ($key === null || (is_string($key) && trim($key) === '')) {
+            return null;
+        }
+
+        $key = is_scalar($key) ? trim((string) $key) : '';
+        $length = mb_strlen($key);
+
+        if ($length < Message::ACK_GROUP_MIN_LENGTH || $length > Message::ACK_GROUP_MAX_LENGTH) {
+            throw ValidationException::withMessages(['ack_group' => __('The acknowledgement group must be between :min and :max characters long (e.g. a UUID).', [
+                'min' => Message::ACK_GROUP_MIN_LENGTH,
+                'max' => Message::ACK_GROUP_MAX_LENGTH,
+            ])]);
+        }
+
+        return hash('sha256', $key);
     }
 
     protected function requiresAcknowledgement(Topic $topic, mixed $ack, int $priority): bool

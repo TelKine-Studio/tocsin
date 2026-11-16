@@ -90,6 +90,7 @@ class NtfyController extends Controller
             'delay' => $data['delay'] ?? null,
             'collapse' => $data['collapse'] ?? null,
             'ack' => $data['ack'] ?? null,
+            'ack_group' => $data['ack_group'] ?? null,
         ], $request);
     }
 
@@ -264,6 +265,7 @@ class NtfyController extends Controller
             'delay' => $value(['X-Delay', 'Delay', 'X-At', 'At', 'X-In', 'In']),
             'collapse' => $value(['X-Collapse', 'Collapse', 'X-Group', 'Group']),
             'ack' => $value(['X-Ack', 'Ack']),
+            'ack_group' => $value(['X-Ack-Group', 'Ack-Group']),
         ], fn ($v) => $v !== null);
     }
 

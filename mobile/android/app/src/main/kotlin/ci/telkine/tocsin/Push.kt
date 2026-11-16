@@ -41,6 +41,7 @@ object Push {
             "click" to extras.getString("tocsin.click"),
             "image" to extras.getString("tocsin.image"),
             "time" to extras.getLong("tocsin.time", 0).takeIf { it > 0 },
+            "notice" to extras.getString("tocsin.notice"),
             "message" to extras.getString("tocsin.body")?.let {
                 mapOf("title" to (extras.getString("tocsin.title") ?: ""), "body" to it)
             },

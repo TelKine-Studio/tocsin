@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -22,6 +24,17 @@ class TopicScreen extends StatefulWidget {
 
 class _TopicScreenState extends State<TopicScreen> {
   late final AppState _state;
+  final _scroll = ScrollController();
+
+  /// Message of a tapped notification, to bring into view once listed.
+  int? _focusId;
+  final _focusKey = GlobalKey();
+  bool _focusScheduled = false;
+  int _focusAttempts = 0;
+
+  /// Message briefly tinted after being brought into view.
+  int? _highlightId;
+  Timer? _highlightTimer;
 
   @override
   void initState() {
@@ -37,7 +50,52 @@ class _TopicScreenState extends State<TopicScreen> {
     if (_state.openSubscriptionId == widget.subscriptionId) {
       _state.openSubscriptionId = null;
     }
+    _highlightTimer?.cancel();
+    _scroll.dispose();
     super.dispose();
+  }
+
+  /// Scrolls to [_focusId] once it is in the list. The list is built
+  /// lazily: far messages are first approached, then shown exactly.
+  void _scheduleFocus(List<TopicMessage> messages) {
+    final id = _focusId;
+    if (id == null || _focusScheduled) return;
+    final index = messages.indexWhere((m) => m.id == id);
+    // Not synced yet: tried again when the list changes.
+    if (index < 0) return;
+
+    _focusScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      _focusScheduled = false;
+      if (!mounted || _focusId != id) return;
+
+      final target = _focusKey.currentContext;
+      if (target != null) {
+        _focusId = null;
+        await Scrollable.ensureVisible(
+          target,
+          alignment: 0.25,
+          duration: const Duration(milliseconds: 350),
+          curve: Curves.easeOutCubic,
+        );
+        if (!mounted) return;
+        setState(() => _highlightId = id);
+        _highlightTimer?.cancel();
+        _highlightTimer = Timer(const Duration(milliseconds: 1600), () {
+          if (mounted) setState(() => _highlightId = null);
+        });
+        return;
+      }
+
+      if (++_focusAttempts > 6 || !_scroll.hasClients) {
+        _focusId = null;
+        return;
+      }
+      // About the height of a message: close enough to get it built.
+      final position = _scroll.position;
+      _scroll.jumpTo((index * 96.0).clamp(0, position.maxScrollExtent));
+      setState(() {});
+    });
   }
 
   Future<void> _refresh() async {
@@ -81,6 +139,12 @@ class _TopicScreenState extends State<TopicScreen> {
 
     final messages = state.messages(subscription.id);
     final server = state.serverFor(subscription.serverUrl);
+    final focus = state.takeFocus(subscription.id);
+    if (focus != null) {
+      _focusId = focus;
+      _focusAttempts = 0;
+    }
+    _scheduleFocus(messages);
     final pending = messages.where((m) => m.awaitsAck).length;
     final locale = Localizations.localeOf(context).toString();
 
@@ -89,6 +153,7 @@ class _TopicScreenState extends State<TopicScreen> {
         onRefresh: _refresh,
         edgeOffset: kToolbarHeight + MediaQuery.paddingOf(context).top,
         child: CustomScrollView(
+          controller: _scroll,
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
             SliverAppBar(
@@ -177,9 +242,27 @@ class _TopicScreenState extends State<TopicScreen> {
                               SnackBar(content: Text(s.t('message_deleted'))),
                             );
                           },
-                          child: _MessageCard(
-                            message: message,
-                            subscriptionId: widget.subscriptionId,
+                          // The message of a tapped notification is
+                          // briefly tinted once brought into view.
+                          child: AnimatedContainer(
+                            key: message.id == (_focusId ?? _highlightId)
+                                ? _focusKey
+                                : null,
+                            duration: const Duration(milliseconds: 400),
+                            decoration: BoxDecoration(
+                              color: message.id == _highlightId
+                                  ? theme.colorScheme.primary.withValues(
+                                      alpha: theme.brightness == Brightness.dark
+                                          ? 0.16
+                                          : 0.08,
+                                    )
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: _MessageCard(
+                              message: message,
+                              subscriptionId: widget.subscriptionId,
+                            ),
                           ),
                         ),
                       ],
@@ -546,6 +629,7 @@ class _MessageCard extends StatelessWidget {
     final error = await context.read<AppState>().acknowledge(
       subscriptionId,
       ack,
+      messageId: message.id,
     );
     messenger.showSnackBar(
       SnackBar(

@@ -2,8 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Actions\AcknowledgeMessage;
 use App\Actions\PublishMessage;
 use App\Jobs\SendMessagePush;
+use App\Models\Device;
 use App\Models\Message;
 use App\Models\Topic;
 use App\Models\User;
@@ -12,6 +14,7 @@ use App\Push\PushPayload;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class AlertingTest extends TestCase
@@ -131,7 +134,7 @@ class AlertingTest extends TestCase
 
     public function test_the_signed_button_acknowledges_the_message(): void
     {
-        $message = Message::factory()->for($this->topic)->create(['requires_ack' => true, 'next_escalation_at' => now()->addMinutes(5), 'dispatched_at' => now()]);
+        $message = Message::factory()->for($this->topic)->create(['body' => 'Server down', 'requires_ack' => true, 'next_escalation_at' => now()->addMinutes(5), 'dispatched_at' => now()]);
 
         $this->postJson('/v1/messages/'.$message->id.'/ack')->assertForbidden();
 
@@ -147,11 +150,188 @@ class AlertingTest extends TestCase
         // Everyone's notification is replaced by "Acknowledged by …".
         Queue::assertPushed(SendMessagePush::class, fn (SendMessagePush $job) => $job->notice === SendMessagePush::ACKNOWLEDGED);
         $payload = PushPayload::forMessage($message->load('topic'), 'https://notify.example.com', SendMessagePush::ACKNOWLEDGED);
-        $this->assertSame('✓ Acknowledged by iPhone de Awa', $payload['aps']['alert']['body']);
+        $this->assertSame("✓ Acknowledged by iPhone de Awa\nServer down", $payload['aps']['alert']['body']);
         $this->assertSame('passive', $payload['aps']['interruption-level']);
         $this->assertArrayNotHasKey('sound', $payload['aps']);
 
         $this->postJson($message->acknowledgeUrl())->assertJson(['already' => true, 'by' => 'iPhone de Awa']);
+    }
+
+    public function test_the_acknowledgement_notice_recalls_the_message(): void
+    {
+        $this->topic->update(['display_name' => 'Alerts']);
+        $message = Message::factory()->for($this->topic)->create([
+            'title' => 'Payment failed',
+            'body' => "Order #4521\n\nCard declined by the bank ".str_repeat('x', 300),
+            'requires_ack' => true,
+            'dispatched_at' => now(),
+        ]);
+        $this->postJson($message->acknowledgeUrl(), [], ['X-Name' => 'Awa'])->assertOk();
+
+        $payload = PushPayload::forMessage($message->fresh()->load('topic'), 'https://notify.example.com', SendMessagePush::ACKNOWLEDGED);
+        $alert = $payload['aps']['alert'];
+
+        // Which message, in which topic, and who handled it.
+        $this->assertSame('Payment failed', $alert['title']);
+        $this->assertSame('Alerts', $alert['subtitle']);
+        [$who, $excerpt] = explode("\n", $alert['body']);
+        $this->assertSame('✓ Acknowledged by Awa', $who);
+        $this->assertStringStartsWith('Order #4521 Card declined by the bank xxx', $excerpt);
+        $this->assertLessThanOrEqual(143, mb_strlen($excerpt));
+
+        // Tapping it opens the message: the apps get its id and know the
+        // text is a notice, not the message.
+        $this->assertSame($message->id, $payload['tocsin']['id']);
+        $this->assertSame('alerts', $payload['tocsin']['topic']);
+        $this->assertSame(SendMessagePush::ACKNOWLEDGED, $payload['tocsin']['notice']);
+        $this->assertArrayNotHasKey('actions', $payload['tocsin']);
+        $this->assertSame(SendMessagePush::ACKNOWLEDGED, PushPayload::forFcm($payload)['notice']);
+
+        // Regular notifications carry no notice.
+        $this->assertArrayNotHasKey('notice', PushPayload::forMessage($message, 'https://notify.example.com')['tocsin']);
+    }
+
+    public function test_whoever_acknowledges_is_not_notified(): void
+    {
+        $awa = User::factory()->create(['name' => 'Awa']);
+        $bob = User::factory()->create();
+        $awaPhone = Device::create(['user_id' => $awa->id, 'token' => str_repeat('a1', 32), 'platform' => 'ios', 'environment' => 'sandbox']);
+        $awaTablet = Device::create(['user_id' => $awa->id, 'token' => str_repeat('a2', 32), 'platform' => 'android', 'environment' => 'production']);
+        $bobPhone = Device::create(['user_id' => $bob->id, 'token' => str_repeat('b1', 32), 'platform' => 'ios', 'environment' => 'sandbox']);
+        $guestPhone = Device::create(['token' => str_repeat('c1', 32), 'platform' => 'ios', 'environment' => 'sandbox']);
+        $this->topic->devices()->attach([$awaPhone->id, $awaTablet->id, $bobPhone->id, $guestPhone->id]);
+
+        // Signed in: none of the devices of the account.
+        $message = Message::factory()->for($this->topic)->create(['requires_ack' => true, 'dispatched_at' => now()]);
+        $this->withToken($awa->createToken('app')->plainTextToken)
+            ->postJson($message->acknowledgeUrl(), [], ['X-Device-Token' => str_repeat('a1', 32)])
+            ->assertOk();
+        Queue::assertPushed(SendMessagePush::class, fn (SendMessagePush $job) => $job->message->is($message)
+            && $job->notice === SendMessagePush::ACKNOWLEDGED
+            && collect($job->except)->sort()->values()->all() === [$awaPhone->id, $awaTablet->id]);
+
+        // Anonymous: the device that acknowledged, known by its push token.
+        $this->app['auth']->forgetGuards();
+        $other = Message::factory()->for($this->topic)->create(['requires_ack' => true, 'dispatched_at' => now()]);
+        $this->withHeaders(['Authorization' => ''])
+            ->postJson($other->acknowledgeUrl(), [], ['X-Name' => 'iPhone', 'X-Device-Token' => str_repeat('c1', 32)])
+            ->assertOk();
+        Queue::assertPushed(SendMessagePush::class, fn (SendMessagePush $job) => $job->message->is($other) && $job->except === [$guestPhone->id]);
+
+        // From the web interface: the devices of the signed-in user.
+        $this->topic->update(['user_id' => $bob->id]);
+        $third = Message::factory()->for($this->topic)->create(['requires_ack' => true, 'dispatched_at' => now()]);
+        $this->actingAs($bob)->post("/topics/alerts/messages/{$third->id}/acknowledge")->assertSessionHas('status');
+        Queue::assertPushed(SendMessagePush::class, fn (SendMessagePush $job) => $job->message->is($third) && $job->except === [$bobPhone->id]);
+
+        // A "resolved" alert closes it for everyone: nobody is left out.
+        $publish = app(PublishMessage::class);
+        $publish->handle($this->topic, ['body' => 'Down', 'collapse' => 'db', 'ack' => true]);
+        $publish->handle($this->topic, ['body' => 'Back up', 'resolves' => 'db']);
+        Queue::assertPushed(SendMessagePush::class, fn (SendMessagePush $job) => $job->notice === SendMessagePush::ACKNOWLEDGED && $job->message->collapse_key === 'key:db' && $job->except === []);
+    }
+
+    // Acknowledgement groups -------------------------------------------------
+
+    /** One event published in the topics of two accounts, linked by X-Ack-Group. */
+    protected function publishEvent(string $key, array $extra = []): array
+    {
+        $awa = User::factory()->create(['name' => 'Awa']);
+        $bob = User::factory()->create(['name' => 'Bob']);
+        $awaTopic = Topic::factory()->for($awa, 'owner')->create(['name' => 'awa-admin']);
+        $bobTopic = Topic::factory()->for($bob, 'owner')->create(['name' => 'bob-admin']);
+        $awaPhone = Device::create(['user_id' => $awa->id, 'token' => str_repeat('a1', 32), 'platform' => 'ios', 'environment' => 'sandbox']);
+        $bobPhone = Device::create(['user_id' => $bob->id, 'token' => str_repeat('b1', 32), 'platform' => 'ios', 'environment' => 'sandbox']);
+        $awaTopic->devices()->attach($awaPhone);
+        $bobTopic->devices()->attach($bobPhone);
+
+        $publish = app(PublishMessage::class);
+        $mine = $publish->handle($awaTopic, ['body' => 'Withdrawal #4521 to validate', 'ack' => true, 'ack_group' => $key, ...$extra]);
+        $theirs = $publish->handle($bobTopic, ['body' => 'Withdrawal #4521 to validate', 'ack' => true, 'ack_group' => $key, ...$extra]);
+
+        return compact('awa', 'bob', 'awaTopic', 'bobTopic', 'awaPhone', 'bobPhone', 'mine', 'theirs');
+    }
+
+    public function test_acknowledging_one_message_of_a_group_acknowledges_the_others(): void
+    {
+        $event = $this->publishEvent('marecharge:withdrawal:4521:9f2c7a1e');
+        $other = app(PublishMessage::class)->handle($event['bobTopic'], ['body' => 'Another event', 'ack' => true, 'ack_group' => 'another-event-key-123']);
+        $alone = app(PublishMessage::class)->handle($event['bobTopic'], ['body' => 'No group', 'ack' => true]);
+
+        // The key itself is never stored.
+        $this->assertSame(hash('sha256', 'marecharge:withdrawal:4521:9f2c7a1e'), $event['mine']->fresh()->ack_group);
+
+        $this->withToken($event['awa']->createToken('app')->plainTextToken)
+            ->postJson($event['mine']->acknowledgeUrl())
+            ->assertOk();
+
+        // Bob's message, in Bob's topic, is acknowledged by Awa.
+        $theirs = $event['theirs']->fresh();
+        $this->assertTrue($theirs->isAcknowledged());
+        $this->assertSame($event['awa']->id, $theirs->acknowledged_by);
+        $this->assertNull($theirs->next_escalation_at);
+        $this->assertSame('Acknowledged by Awa', $theirs->acknowledgementLabel());
+
+        // Other events are left alone.
+        $this->assertFalse($other->fresh()->isAcknowledged());
+        $this->assertFalse($alone->fresh()->isAcknowledged());
+
+        // Bob is told on his own alert (Awa has no device on his topic),
+        // Awa is not: she did it.
+        Queue::assertPushed(SendMessagePush::class, fn (SendMessagePush $job) => $job->message->is($theirs)
+            && $job->notice === SendMessagePush::ACKNOWLEDGED
+            && $job->except === []);
+        Queue::assertPushed(SendMessagePush::class, fn (SendMessagePush $job) => $job->message->is($event['mine'])
+            && $job->notice === SendMessagePush::ACKNOWLEDGED
+            && $job->except === [$event['awaPhone']->id]);
+        Queue::assertPushed(SendMessagePush::class, fn (SendMessagePush $job) => $job->notice === SendMessagePush::ACKNOWLEDGED, 2);
+
+        // Acknowledging Bob's afterwards: already done.
+        $this->postJson($theirs->acknowledgeUrl())->assertJson(['already' => true, 'by' => 'Awa']);
+    }
+
+    public function test_a_late_message_of_an_acknowledged_group_arrives_acknowledged(): void
+    {
+        $event = $this->publishEvent('marecharge:withdrawal:4522:0b7d3e5f');
+        app(AcknowledgeMessage::class)->handle($event['mine'], $event['awa']);
+
+        $carol = Topic::factory()->create(['name' => 'carol-admin', 'escalation' => [['after' => 5, 'users' => []]]]);
+        $late = app(PublishMessage::class)->handle($carol, ['body' => 'Withdrawal #4522 to validate', 'ack' => true, 'ack_group' => 'marecharge:withdrawal:4522:0b7d3e5f']);
+
+        $this->assertTrue($late->fresh()->isAcknowledged());
+        $this->assertSame($event['awa']->id, $late->fresh()->acknowledged_by);
+        $this->assertNull($late->fresh()->next_escalation_at);
+        $this->assertSame([], $late->fresh()->actionsWithAcknowledgement());
+    }
+
+    public function test_acknowledgement_groups_are_limited_in_time(): void
+    {
+        $event = $this->publishEvent('marecharge:withdrawal:4523:5c1a9b2d');
+        $event['theirs']->forceFill(['created_at' => now()->subDays(Message::ACK_GROUP_WINDOW_DAYS + 1)])->save();
+
+        app(AcknowledgeMessage::class)->handle($event['mine'], $event['awa']);
+
+        $this->assertFalse($event['theirs']->fresh()->isAcknowledged());
+    }
+
+    public function test_acknowledgement_group_keys_must_not_be_guessable(): void
+    {
+        $topic = Topic::factory()->create();
+
+        $this->expectException(ValidationException::class);
+        app(PublishMessage::class)->handle($topic, ['body' => 'Hi', 'ack_group' => 'short']);
+    }
+
+    public function test_the_ack_group_header_is_read_by_both_apis(): void
+    {
+        $this->publish('Down', ['X-Ack' => 'yes', 'X-Ack-Group' => 'header-group-key-0001']);
+        $this->assertSame(hash('sha256', 'header-group-key-0001'), Message::latest('id')->first()->ack_group);
+
+        $this->postJson('/', ['topic' => 'alerts', 'message' => 'Down again', 'ack' => true, 'ack_group' => 'json-group-key-00002'])->assertOk();
+        $this->assertSame(hash('sha256', 'json-group-key-00002'), Message::latest('id')->first()->ack_group);
+
+        $this->postJson('/api/v1/topics/alerts/messages', ['message' => 'Down 3', 'ack' => true, 'ack_group' => 'api-group-key-000003'])->assertCreated();
+        $this->assertSame(hash('sha256', 'api-group-key-000003'), Message::latest('id')->first()->ack_group);
     }
 
     public function test_a_token_identifies_who_acknowledged(): void

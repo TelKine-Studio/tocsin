@@ -33,6 +33,7 @@ Supported headers (and their query-parameter equivalents):
 | `X-Message` | `Message`, `m` | message when the body is a file |
 | `X-Collapse` | `Collapse`, `X-Group`, `Group` | *Tocsin extension.* Grouping key: messages with the same key within the topic's window are counted on one message (see [alerting](alerting.md)) |
 | `X-Ack` | `Ack` | *Tocsin extension.* `yes` / `no`: force or skip the acknowledgement |
+| `X-Ack-Group` | `Ack-Group` | *Tocsin extension.* Secret key (16–200 characters) shared by the messages of one event published in several topics: acknowledging one acknowledges them all (see [alerting](alerting.md#one-event-in-several-topics-acknowledgement-groups)) |
 
 Non-ASCII headers can be sent RFC 2047 encoded, as with ntfy.
 

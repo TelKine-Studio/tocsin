@@ -107,6 +107,8 @@ class TocsinMessagingService : FirebaseMessagingService() {
                 putExtra("tocsin.click", data["click"])
                 putExtra("tocsin.image", data["image"])
                 putExtra("tocsin.time", System.currentTimeMillis() / 1000)
+                // "Acknowledged by …": about the message, not the message.
+                putExtra("tocsin.notice", data["notice"])
             }
         }
         return PendingIntent.getActivity(this, requestCode, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)

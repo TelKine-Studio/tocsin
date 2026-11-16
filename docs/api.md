@@ -112,7 +112,7 @@ Messages are returned newest first:
 Publish a message. The body can be:
 
 - **plain text** — the message itself, with optional headers `X-Title`, `X-Priority`, `X-Tags` (comma separated) and `X-Click` (URL opened when tapping the notification);
-- **JSON or form data** — `message` (or `body`), `title`, `priority`, `tags` (array or comma separated string), `click`, `collapse` (grouping key, header `X-Collapse`), `ack` (`true` / `false`, header `X-Ack`).
+- **JSON or form data** — `message` (or `body`), `title`, `priority`, `tags` (array or comma separated string), `click`, `collapse` (grouping key, header `X-Collapse`), `ack` (`true` / `false`, header `X-Ack`), `ack_group` (secret key of 16 to 200 characters shared by the messages of one event published in several topics, header `X-Ack-Group`: acknowledging one acknowledges them all).
 
 When the message is grouped with a recent one, the existing message is returned with its `occurrences` counter. Messages that must be acknowledged carry an `ack` object — `acknowledged`, `by`, `label`, `at`, `url` (signed, while not acknowledged), `reminders`, `next_reminder` — and an `Acknowledge` action (`"ack": true`) first in `actions`. See [alerting](alerting.md).
 
@@ -175,13 +175,13 @@ Priority 5 uses the `time-sensitive` interruption level, priorities 1–2 are `p
 
 `tocsin.icon` is the logo of the message (`X-Icon`) or of its topic; topics expose it as `icon` (`GET /topics/{topic}`), served publicly at `/v1/topics/{topic}/icon`.
 
-Reminders and acknowledgements reuse the `apns-collapse-id` of the message, so they replace its notification. `tocsin.ack` is `1` while the message waits for an acknowledgement.
+Reminders and acknowledgements reuse the `apns-collapse-id` of the message, so they replace its notification. `tocsin.ack` is `1` while the message waits for an acknowledgement. The "Acknowledged by …" notice carries `tocsin.notice: "acknowledged"` (and reminders `"reminder"`): its text is about the message, not the message itself, and tapping it opens message `tocsin.id`. It is not sent to whoever acknowledged.
 
 ## Acknowledgement
 
 ### `POST /v1/messages/{id}/ack?signature=…`
 
-The signed URL of the `Acknowledge` action (outside `/api/v1`). Optional `Authorization` header to record the user, or `X-Name` for a display name. Returns `{"acknowledged": true, "already": false, "by": "Awa", "at": "…"}`.
+The signed URL of the `Acknowledge` action (outside `/api/v1`). Optional `Authorization` header to record the user, or `X-Name` for a display name. `X-Device-Token` (the push token of the calling device) keeps that device from receiving the notice. Messages of the same `ack_group` are acknowledged too. Returns `{"acknowledged": true, "already": false, "by": "Awa", "at": "…"}`.
 
 ## Realtime
 

@@ -984,6 +984,7 @@
     "Someone": "Quelqu'un",
     "Resolved automatically": "Résolu automatiquement",
     "Acknowledged by :name": "Acquitté par :name",
+    "The acknowledgement group must be between :min and :max characters long (e.g. a UUID).": "Le groupe d'acquittement doit faire entre :min et :max caractères (par exemple un UUID).",
     "Message acknowledged": "Message acquitté",
     "Reminder: :title": "Rappel : :title",
     "This message does not need an acknowledgement.": "Ce message n'a pas besoin d'être acquitté.",

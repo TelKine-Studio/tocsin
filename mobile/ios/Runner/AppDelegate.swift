@@ -64,10 +64,17 @@ final class TocsinPushPlugin: NSObject, FlutterPlugin {
     case "deviceName":
       result(UIDevice.current.name)
     case "removeDelivered":
-      let thread = (call.arguments as? [String: Any])?["thread"] as? String
+      let args = call.arguments as? [String: Any]
+      let thread = args?["thread"] as? String
+      let id = args?["id"] as? Int
       UNUserNotificationCenter.current().getDeliveredNotifications { notifications in
         let ids = notifications
           .filter { thread == nil || $0.request.content.threadIdentifier == thread }
+          .filter { notification in
+            guard let id else { return true }
+            let info = notification.request.content.userInfo["tocsin"] as? [String: Any]
+            return (info?["id"] as? Int) == id
+          }
           .map { $0.request.identifier }
         UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ids)
         DispatchQueue.main.async { result(nil) }

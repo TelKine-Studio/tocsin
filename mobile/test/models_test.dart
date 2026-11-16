@@ -222,4 +222,20 @@ void main() {
     );
     expect(TopicMessage.fromNotification({'id': 1}), isNull);
   });
+
+  test('a notice about a message is not taken for the message', () {
+    // "Acknowledged by Awa": opening it must not store this text.
+    expect(
+      TopicMessage.fromNotification({
+        'topic': 'alerts',
+        'id': 42,
+        'notice': 'acknowledged',
+        'message': {
+          'title': 'Disk',
+          'body': '✓ Acknowledged by Awa\nAlmost full',
+        },
+      }),
+      isNull,
+    );
+  });
 }
