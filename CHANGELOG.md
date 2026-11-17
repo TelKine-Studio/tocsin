@@ -7,6 +7,7 @@ All notable changes to Tocsin are documented here. The format follows [Keep a Ch
 ### Server
 - **Acknowledgement groups** (`X-Ack-Group`, `ack_group` in JSON): the messages of one event published in several topics, even of different accounts, are acknowledged together, and each topic's subscribers are told.
 - The "Acknowledged by …" notification is no longer sent to whoever acknowledged, and recalls the message (excerpt) it is about.
+- Fixed: with cached routes (the Docker image), adding a user from Administration → Users only reloaded the page, and JSON publishing (`POST /`) was redirected to the dashboard. The two redirects now answer GET only.
 
 ### Apps
 - Tapping a notification opens its message: the list scrolls to it and highlights it.

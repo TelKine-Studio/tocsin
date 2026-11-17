@@ -27,7 +27,9 @@ use App\Http\Middleware\EnsureRelayOperator;
 use App\Http\Middleware\RequireTwoFactor;
 use Illuminate\Support\Facades\Route;
 
-Route::redirect('/', '/dashboard');
+// GET only: Route::redirect() answers every method, and once routes are cached
+// the first match wins, so it would swallow POST / (ntfy JSON publishing).
+Route::get('/', fn () => redirect('/dashboard'));
 
 // Link of the "add on mobile" QR code (opened by the phone's camera).
 Route::get('m/{topic}', [PairingController::class, 'show'])->name('pairing.show');
@@ -108,7 +110,8 @@ Route::middleware('auth')->group(function () {
         Route::put('settings/security', [SettingsController::class, 'updateSecurity'])->name('settings.security');
         Route::resource('users', UserController::class)->only(['index', 'edit', 'update', 'destroy']);
         Route::put('users/{user}/plan', [UserController::class, 'updatePlan'])->name('users.plan');
-        Route::redirect('invitations', '/admin/users')->name('invitations.index');
+        // GET only, or it swallows the POST below once routes are cached.
+        Route::get('invitations', fn () => redirect()->route('admin.users.index'))->name('invitations.index');
         Route::post('invitations', [InvitationController::class, 'store'])->name('invitations.store');
         Route::post('invitations/{invitation}/resend', [InvitationController::class, 'resend'])->name('invitations.resend');
         Route::delete('invitations/{invitation}', [InvitationController::class, 'destroy'])->name('invitations.destroy');
