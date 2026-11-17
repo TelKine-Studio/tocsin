@@ -48,13 +48,14 @@
 
         @php
             $quota = \App\Support\AccountQuota::enabled();
-            $cols = $quota
-                ? 'lg:grid-cols-[minmax(0,1.6fr)_120px_150px_110px_140px_110px_32px]'
-                : 'lg:grid-cols-[minmax(0,1.6fr)_120px_110px_140px_110px_32px]';
+            // Plan and devices only on wide screens: the user column keeps room for the email.
+            $cols = 'lg:grid-cols-[minmax(0,1fr)_100px_120px_160px_32px] '.($quota
+                ? 'xl:grid-cols-[minmax(0,1fr)_100px_130px_90px_120px_160px_32px]'
+                : 'xl:grid-cols-[minmax(0,1fr)_100px_90px_120px_160px_32px]');
         @endphp
         @if ($users->isNotEmpty() || $invitations->isNotEmpty())
             <div class="hidden gap-4 border-b border-zinc-200 bg-zinc-50 px-6 py-2.5 text-xs font-medium text-zinc-500 lg:grid {{ $cols }} dark:border-zinc-800 dark:bg-white/[.03]">
-                <span>{{ __('User') }}</span><span>{{ __('Role') }}</span>@if ($quota)<span>{{ __('Plan') }}</span>@endif<span>{{ __('Devices') }}</span><span>{{ __('Last login') }}</span><span>{{ __('State') }}</span><span></span>
+                <span>{{ __('User') }}</span><span>{{ __('Role') }}</span>@if ($quota)<span class="hidden xl:block">{{ __('Plan') }}</span>@endif<span class="hidden xl:block">{{ __('Devices') }}</span><span>{{ __('Last login') }}</span><span>{{ __('State') }}</span><span></span>
             </div>
         @endif
 
@@ -66,12 +67,12 @@
                         <x-ui.avatar :name="$invitation->name ?? $invitation->email" size="sm" class="opacity-60" />
                         <div class="min-w-0">
                             <p class="truncate text-sm font-medium text-zinc-900 dark:text-white">{{ $invitation->name ?? $invitation->email }}</p>
-                            <p class="truncate text-xs text-zinc-500">{{ $invitation->email }}</p>
+                            <p class="truncate text-xs text-zinc-500" title="{{ $invitation->email }}">{{ $invitation->email }}</p>
                         </div>
                     </div>
                     <span class="hidden lg:block"><x-ui.badge :color="$invitation->role === App\Enums\Role::Admin ? 'brand' : 'zinc'">{{ $invitation->role->label() }}</x-ui.badge></span>
-                    @if ($quota)<span class="hidden text-xs text-zinc-400 lg:block">—</span>@endif
-                    <span class="hidden text-xs text-zinc-400 lg:block">—</span>
+                    @if ($quota)<span class="hidden text-xs text-zinc-400 xl:block">—</span>@endif
+                    <span class="hidden text-xs text-zinc-400 xl:block">—</span>
                     <span class="hidden text-xs text-zinc-500 lg:block">{{ __('Link expires :date', ['date' => $invitation->expires_at->diffForHumans()]) }}</span>
                     <span class="pl-11 lg:pl-0"><x-ui.badge color="amber" dot>{{ __('Awaiting activation') }}</x-ui.badge></span>
                     <span class="absolute top-3 right-3 lg:static">
@@ -101,12 +102,12 @@
                         <x-ui.avatar :user="$user" size="sm" />
                         <div class="min-w-0">
                             <p class="truncate text-sm font-medium text-zinc-900 dark:text-white">{{ $user->name }} @if ($user->is(auth()->user()))<span class="text-xs font-normal text-zinc-400">({{ __('you') }})</span>@endif</p>
-                            <p class="truncate text-xs text-zinc-500">{{ $user->email }}</p>
+                            <p class="truncate text-xs text-zinc-500" title="{{ $user->email }}">{{ $user->email }}</p>
                         </div>
                     </div>
                     <span class="hidden lg:block"><x-ui.badge :color="$user->isAdmin() ? 'brand' : 'zinc'">{{ $user->role->label() }}</x-ui.badge></span>
                     @if ($quota)
-                        <span class="hidden text-xs text-zinc-500 lg:block" title="{{ __('Messages today') }}">
+                        <span class="hidden text-xs text-zinc-500 xl:block" title="{{ __('Messages today') }}">
                             @if ($user->isAdmin())
                                 —
                             @else
@@ -115,7 +116,7 @@
                             @endif
                         </span>
                     @endif
-                    <span class="hidden text-xs text-zinc-600 tabular-nums lg:block dark:text-zinc-400">{{ trans_choice(':count device|:count devices', $user->devices_count) }}</span>
+                    <span class="hidden text-xs text-zinc-600 tabular-nums xl:block dark:text-zinc-400">{{ trans_choice(':count device|:count devices', $user->devices_count) }}</span>
                     <span class="hidden text-xs text-zinc-600 lg:block dark:text-zinc-400" title="{{ $user->last_login_at?->isoFormat('LLL') }}">{{ $user->last_login_at ? $user->last_login_at->diffForHumans() : __('Never logged in') }}</span>
                     <span class="flex flex-wrap items-center gap-2 pl-11 lg:pl-0">
                         <span class="lg:hidden"><x-ui.badge :color="$user->isAdmin() ? 'brand' : 'zinc'">{{ $user->role->label() }}</x-ui.badge></span>
