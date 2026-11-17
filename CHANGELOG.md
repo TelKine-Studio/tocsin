@@ -14,7 +14,6 @@ All notable changes to Tocsin are documented here. The format follows [Keep a Ch
 - Topic owners no longer receive the list of every user (name and email) when adding a member: only administrators get the suggestions.
 - Browser push subscriptions must point to a browser push service (Google, Mozilla, Microsoft, Apple); the answer of the push service is no longer stored.
 - Relay: a device token can be reached by at most 5 instances, and the daily quota can no longer be overrun by parallel requests.
-- Removing a member of a private topic moves its live channel: connections opened before stop receiving its messages.
 - Changing the email of an account and getting new recovery codes ask for the password; an active two-factor setup can no longer be replaced without disabling it; changing the password closes the other sessions.
 - Single sign-on only opens an existing account when the provider says the email is verified, and asks for the two-factor code of accounts that have one.
 - Only proxies on private networks are trusted, never for the host name; password-reset and invitation links are built on the configured URL.

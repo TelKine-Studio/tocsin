@@ -99,32 +99,6 @@ class HardeningTest extends TestCase
         $this->assertSame([$hash], RelayToken::claim($clients->last(), [$hash])->all());
     }
 
-    public function test_removing_a_member_moves_the_live_channel(): void
-    {
-        $owner = User::factory()->create();
-        $member = User::factory()->create();
-        $topic = Topic::factory()->for($owner, 'owner')->create(['name' => 'ops']);
-        $topic->members()->attach($member->id, ['can_read' => true, 'can_write' => false]);
-        $this->assertSame('topic.ops', $topic->channelName());
-
-        $this->actingAs($owner)->delete(route('topics.members.destroy', [$topic, $member]))->assertRedirect();
-
-        $topic->refresh();
-        $this->assertMatchesRegularExpression('/^topic\.ops\.[a-z0-9]{16}$/', $topic->channelName());
-        $this->assertSame('private-'.$topic->channelName(), $topic->clientChannelName());
-
-        config(['broadcasting.default' => 'reverb', 'broadcasting.connections.reverb.key' => 'k', 'broadcasting.connections.reverb.secret' => 's', 'broadcasting.connections.reverb.app_id' => 'a']);
-        require base_path('routes/channels.php');
-        $auth = function (User $user, string $channel) {
-            $this->app['auth']->forgetGuards();
-
-            return $this->withToken($user->createToken('t')->plainTextToken)->postJson('/api/v1/broadcasting/auth', ['socket_id' => '1234.5678', 'channel_name' => $channel]);
-        };
-        $auth($owner, 'private-'.$topic->channelName())->assertOk();
-        $auth($owner, 'private-topic.ops')->assertForbidden();
-        $auth($member, 'private-'.$topic->channelName())->assertForbidden();
-    }
-
     public function test_an_open_session_alone_cannot_take_the_account_over(): void
     {
         $user = $this->withTwoFactor(User::factory()->create(['email' => 'jane@example.com']));

@@ -12,7 +12,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Laravel\Sanctum\PersonalAccessToken;
 
 #[Fillable(['name', 'display_name', 'description', 'visibility', 'anonymous_publish', 'owner_id', 'group_window', 'ack_priority', 'escalation'])]
@@ -141,20 +140,10 @@ class Topic extends Model
         return $this->display_name ?: $this->name;
     }
 
-    /**
-     * Name of the realtime channel, without the "private-" prefix. The key
-     * changes when a member loses access: connections opened before keep
-     * listening to the old channel, where nothing is broadcast any more.
-     */
+    /** Name of the realtime channel, without the "private-" prefix. */
     public function channelName(): string
     {
-        return 'topic.'.$this->name.($this->channel_key ? '.'.$this->channel_key : '');
-    }
-
-    /** New realtime channel: open live connections stop receiving messages. */
-    public function rotateChannel(): void
-    {
-        $this->forceFill(['channel_key' => Str::lower(Str::random(16))])->save();
+        return 'topic.'.$this->name;
     }
 
     /** Full channel name as seen by Pusher-protocol clients. */
