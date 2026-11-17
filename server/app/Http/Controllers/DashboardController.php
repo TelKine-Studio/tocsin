@@ -51,6 +51,10 @@ class DashboardController extends Controller
             'devices' => Device::query()->whereHas('topics', fn ($q) => $q->whereIn('topics.id', $readable))->count(),
             'pushes' => (int) Message::query()->whereIn('topic_id', $readable)->where('created_at', '>=', now()->subDays(7))->sum('push_count'),
         ];
+        $previousPushes = (int) Message::query()->whereIn('topic_id', $readable)
+            ->whereBetween('created_at', [now()->subDays(14), now()->subDays(7)])->sum('push_count');
+        $stats['pushes_trend'] = $previousPushes > 0 ? round(($stats['pushes'] - $previousPushes) / $previousPushes * 100, 1) : null;
+        $stats['trend'] = $previousWeek > 0 ? round(($weekly - $previousWeek) / $previousWeek * 100, 1) : null;
 
         $onboarding = collect([
             ['done' => $settings->pushConfigured(), 'title' => __('Enable push notifications'), 'text' => __('Connect to the Telkine relay in one click, or add your own APNs key.'), 'href' => $user->isAdmin() ? route('admin.settings.edit', 'push') : null],

@@ -60,9 +60,10 @@
     @endif
 
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <x-ui.stat :label="__('Messages this week')" :value="number_format($stats['messages_week'])" icon="activity" :series="$activity->pluck('count')->all()"
-            :hint="$stats['trend'] === null ? __('No activity the week before') : ($stats['trend'] >= 0 ? '↑ '.$stats['trend'].'% '.__('vs last week') : '↓ '.abs($stats['trend']).'% '.__('vs last week'))" />
-        <x-ui.stat :label="__('Push notifications sent')" :value="number_format($stats['pushes'])" icon="bell" :hint="__('Last 7 days')" />
+        <x-ui.stat :label="__('Messages this week')" :value="number_format($stats['messages_week'], 0, ',', ' ')" icon="activity" :series="$activity->pluck('count')->all()"
+            :delta="$stats['trend']" :delta-label="__('vs last week')" :hint="$stats['trend'] === null ? __('No activity the week before') : null" />
+        <x-ui.stat :label="__('Push notifications sent')" :value="number_format($stats['pushes'], 0, ',', ' ')" icon="bell"
+            :delta="$stats['pushes_trend']" :delta-label="__('vs last week')" :hint="$stats['pushes_trend'] === null ? __('Last 7 days') : null" />
         <x-ui.stat :label="__('Subscribed devices')" :value="number_format($stats['devices'])" icon="smartphone" :hint="__('iPhones receiving your topics')" />
         <x-ui.stat :label="__('Topics')" :value="number_format($stats['topics'])" icon="hash" :href="route('topics.index')" :hint="__('Accessible to you')" />
     </div>

@@ -1216,5 +1216,8 @@
     "custom": "personnalisée",
     "Until you change it": "Jusqu’à modification",
     "Change": "Changer",
-    "Paste the URL it gives you in the webhook settings of your tool.": "Collez l’adresse obtenue dans les réglages de webhook de votre outil."
+    "Paste the URL it gives you in the webhook settings of your tool.": "Collez l’adresse obtenue dans les réglages de webhook de votre outil.",
+    "State": "État",
+    "Time": "Heure",
+    "Event": "Événement"
 }

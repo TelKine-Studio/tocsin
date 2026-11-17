@@ -1,4 +1,4 @@
-@props(['label', 'value', 'icon', 'hint' => null, 'series' => null, 'href' => null])
+@props(['label', 'value', 'icon', 'hint' => null, 'series' => null, 'href' => null, 'delta' => null, 'deltaLabel' => null])
 @php
     $tag = $href ? 'a' : 'div';
     $points = null;
@@ -17,7 +17,10 @@
             <x-ui.icon :name="$icon" class="size-4" />
         </span>
     </div>
-    <p class="mt-3 text-3xl font-semibold tracking-tight tabular-nums text-zinc-900 dark:text-white">{{ $value }}</p>
+    <p data-count class="mt-3 origin-left text-3xl font-semibold tracking-tight tabular-nums text-zinc-900 dark:text-white">{{ $value }}</p>
+    @if ($delta !== null)
+        <p class="mt-1"><x-ui.trend :value="$delta" :label="$deltaLabel ?? __('vs previous 30 days')" /></p>
+    @endif
     @if ($hint)
         <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{{ $hint }}</p>
     @endif

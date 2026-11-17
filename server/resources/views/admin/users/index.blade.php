@@ -46,59 +46,85 @@
 
         <div id="user-results" class="transition-opacity" :class="loading && 'opacity-60'">
 
-        <ul class="divide-y divide-zinc-100 dark:divide-zinc-800">
+        @php
+            $quota = \App\Support\AccountQuota::enabled();
+            $cols = $quota
+                ? 'lg:grid-cols-[minmax(0,1.6fr)_120px_150px_110px_140px_110px_32px]'
+                : 'lg:grid-cols-[minmax(0,1.6fr)_120px_110px_140px_110px_32px]';
+        @endphp
+        @if ($users->isNotEmpty() || $invitations->isNotEmpty())
+            <div class="hidden gap-4 border-b border-zinc-200 bg-zinc-50 px-6 py-2.5 text-xs font-medium text-zinc-500 lg:grid {{ $cols }} dark:border-zinc-800 dark:bg-white/[.03]">
+                <span>{{ __('User') }}</span><span>{{ __('Role') }}</span>@if ($quota)<span>{{ __('Plan') }}</span>@endif<span>{{ __('Devices') }}</span><span>{{ __('Last login') }}</span><span>{{ __('State') }}</span><span></span>
+            </div>
+        @endif
+
+        <div class="divide-y divide-zinc-100 dark:divide-zinc-800">
             {{-- Pending activations --}}
             @foreach ($invitations as $invitation)
-                <li class="flex flex-wrap items-center gap-x-4 gap-y-2 bg-amber-50/40 px-4 py-3.5 sm:px-6 dark:bg-amber-500/[.03]">
-                    <x-ui.avatar :name="$invitation->name ?? $invitation->email" class="opacity-60" />
-                    <div class="min-w-0 flex-1">
-                        <p class="truncate text-sm font-medium text-zinc-900 dark:text-white">{{ $invitation->name ?? $invitation->email }}</p>
-                        <p class="truncate text-xs text-zinc-500">{{ $invitation->email }}</p>
+                <div class="relative grid items-center gap-x-4 gap-y-2 bg-amber-50/40 px-4 py-3 sm:px-6 lg:grid {{ $cols }} dark:bg-amber-500/[.03]">
+                    <div class="flex min-w-0 items-center gap-3 pr-10 lg:pr-0">
+                        <x-ui.avatar :name="$invitation->name ?? $invitation->email" size="sm" class="opacity-60" />
+                        <div class="min-w-0">
+                            <p class="truncate text-sm font-medium text-zinc-900 dark:text-white">{{ $invitation->name ?? $invitation->email }}</p>
+                            <p class="truncate text-xs text-zinc-500">{{ $invitation->email }}</p>
+                        </div>
                     </div>
-                    <x-ui.badge :color="$invitation->role === App\Enums\Role::Admin ? 'brand' : 'zinc'" class="hidden sm:inline-flex">{{ $invitation->role->label() }}</x-ui.badge>
-                    <x-ui.badge color="amber" dot title="{{ __('Link expires :date', ['date' => $invitation->expires_at->diffForHumans()]) }}">{{ __('Awaiting activation') }}</x-ui.badge>
-                    <x-ui.dropdown width="w-56">
-                        <x-slot:trigger>
-                            <x-ui.button type="button" variant="ghost" size="icon" icon="more" class="size-8"><span class="sr-only">{{ __('Actions') }}</span></x-ui.button>
-                        </x-slot:trigger>
-                        <form method="POST" action="{{ route('admin.invitations.resend', $invitation) }}">
-                            @csrf
-                            <input type="hidden" name="send_email" value="1">
-                            <x-ui.dropdown-item icon="send">{{ $mailConfigured ? __('Resend the link') : __('New activation link') }}</x-ui.dropdown-item>
-                        </form>
-                        <form method="POST" action="{{ route('admin.invitations.destroy', $invitation) }}" data-confirm-title="{{ __('Cancel the addition of :name?', ['name' => $invitation->name ?? $invitation->email]) }}" data-confirm="{{ __('The activation link will stop working.') }}" data-confirm-action="{{ __('Cancel the addition') }}">
-                            @csrf
-                            @method('DELETE')
-                            <x-ui.dropdown-item icon="x" danger>{{ __('Cancel the addition') }}</x-ui.dropdown-item>
-                        </form>
-                    </x-ui.dropdown>
-                </li>
+                    <span class="hidden lg:block"><x-ui.badge :color="$invitation->role === App\Enums\Role::Admin ? 'brand' : 'zinc'">{{ $invitation->role->label() }}</x-ui.badge></span>
+                    @if ($quota)<span class="hidden text-xs text-zinc-400 lg:block">—</span>@endif
+                    <span class="hidden text-xs text-zinc-400 lg:block">—</span>
+                    <span class="hidden text-xs text-zinc-500 lg:block">{{ __('Link expires :date', ['date' => $invitation->expires_at->diffForHumans()]) }}</span>
+                    <span class="pl-11 lg:pl-0"><x-ui.badge color="amber" dot>{{ __('Awaiting activation') }}</x-ui.badge></span>
+                    <span class="absolute top-3 right-3 lg:static">
+                        <x-ui.dropdown width="w-56">
+                            <x-slot:trigger>
+                                <x-ui.button type="button" variant="ghost" size="icon" icon="more"><span class="sr-only">{{ __('Actions') }}</span></x-ui.button>
+                            </x-slot:trigger>
+                            <form method="POST" action="{{ route('admin.invitations.resend', $invitation) }}">
+                                @csrf
+                                <input type="hidden" name="send_email" value="1">
+                                <x-ui.dropdown-item icon="send">{{ $mailConfigured ? __('Resend the link') : __('New activation link') }}</x-ui.dropdown-item>
+                            </form>
+                            <form method="POST" action="{{ route('admin.invitations.destroy', $invitation) }}" data-confirm-title="{{ __('Cancel the addition of :name?', ['name' => $invitation->name ?? $invitation->email]) }}" data-confirm="{{ __('The activation link will stop working.') }}" data-confirm-action="{{ __('Cancel the addition') }}">
+                                @csrf
+                                @method('DELETE')
+                                <x-ui.dropdown-item icon="x" danger>{{ __('Cancel the addition') }}</x-ui.dropdown-item>
+                            </form>
+                        </x-ui.dropdown>
+                    </span>
+                </div>
             @endforeach
 
             {{-- Active accounts --}}
             @foreach ($users as $user)
-                <li>
-                    <a href="{{ route('admin.users.edit', $user) }}" class="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3.5 transition hover:bg-zinc-50/80 sm:px-6 dark:hover:bg-white/[.02]">
-                        <x-ui.avatar :user="$user" />
-                        <div class="min-w-0 flex-1">
+                <a href="{{ route('admin.users.edit', $user) }}" class="grid items-center gap-x-4 gap-y-2 px-4 py-3 transition hover:bg-zinc-50/80 sm:px-6 lg:grid {{ $cols }} dark:hover:bg-white/[.02]">
+                    <div class="flex min-w-0 items-center gap-3">
+                        <x-ui.avatar :user="$user" size="sm" />
+                        <div class="min-w-0">
                             <p class="truncate text-sm font-medium text-zinc-900 dark:text-white">{{ $user->name }} @if ($user->is(auth()->user()))<span class="text-xs font-normal text-zinc-400">({{ __('you') }})</span>@endif</p>
                             <p class="truncate text-xs text-zinc-500">{{ $user->email }}</p>
                         </div>
-                        @if (\App\Support\AccountQuota::enabled() && ! $user->isAdmin())
-                            <span class="hidden w-40 text-xs text-zinc-500 md:block" title="{{ __('Messages today') }}">
+                    </div>
+                    <span class="hidden lg:block"><x-ui.badge :color="$user->isAdmin() ? 'brand' : 'zinc'">{{ $user->role->label() }}</x-ui.badge></span>
+                    @if ($quota)
+                        <span class="hidden text-xs text-zinc-500 lg:block" title="{{ __('Messages today') }}">
+                            @if ($user->isAdmin())
+                                —
+                            @else
                                 <x-ui.badge :color="$user->isOnPaidPlan() ? 'violet' : 'zinc'">{{ ucfirst($user->plan ?? 'free') }}</x-ui.badge>
                                 <span class="ml-1 tabular-nums">{{ number_format((int) $user->messages_today, 0, ',', ' ') }} / {{ number_format($user->effectiveDailyLimit(), 0, ',', ' ') }}</span>
-                            </span>
-                        @endif
-                        <span class="hidden w-28 text-xs text-zinc-500 md:block" title="{{ __('Devices') }}"><x-ui.icon name="smartphone" class="mr-1 inline size-3.5" />{{ trans_choice(':count device|:count devices', $user->devices_count) }}</span>
-                        <span class="hidden w-36 text-xs text-zinc-500 lg:block">{{ $user->last_login_at ? __('Seen :date', ['date' => $user->last_login_at->diffForHumans()]) : __('Never logged in') }}</span>
-                        <x-ui.badge :color="$user->isAdmin() ? 'brand' : 'zinc'" class="hidden sm:inline-flex">{{ $user->role->label() }}</x-ui.badge>
+                            @endif
+                        </span>
+                    @endif
+                    <span class="hidden text-xs text-zinc-600 tabular-nums lg:block dark:text-zinc-400">{{ trans_choice(':count device|:count devices', $user->devices_count) }}</span>
+                    <span class="hidden text-xs text-zinc-600 lg:block dark:text-zinc-400" title="{{ $user->last_login_at?->isoFormat('LLL') }}">{{ $user->last_login_at ? $user->last_login_at->diffForHumans() : __('Never logged in') }}</span>
+                    <span class="flex flex-wrap items-center gap-2 pl-11 lg:pl-0">
+                        <span class="lg:hidden"><x-ui.badge :color="$user->isAdmin() ? 'brand' : 'zinc'">{{ $user->role->label() }}</x-ui.badge></span>
                         <x-ui.badge :color="$user->is_active ? 'green' : 'red'" dot>{{ $user->is_active ? __('Active') : __('Disabled') }}</x-ui.badge>
-                        <x-ui.icon name="chevron-right" class="size-4 text-zinc-300" />
-                    </a>
-                </li>
+                    </span>
+                    <x-ui.icon name="chevron-right" class="hidden size-4 text-zinc-300 lg:block dark:text-zinc-600" />
+                </a>
             @endforeach
-        </ul>
+        </div>
 
         @if ($users->isEmpty() && $invitations->isEmpty())
             <x-ui.empty icon="users" :title="__('No user matches your search')" />
