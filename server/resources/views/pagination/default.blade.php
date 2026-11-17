@@ -7,14 +7,14 @@
         </p>
         <div class="flex gap-2">
             @if ($paginator->onFirstPage())
-                <span class="rounded-xl border border-zinc-200 px-3.5 py-2 text-sm text-zinc-300 dark:border-zinc-800 dark:text-zinc-600">{{ __('Previous') }}</span>
+                <span class="inline-flex h-8 items-center rounded-md border border-zinc-200 px-3 text-sm text-zinc-300 dark:border-zinc-800 dark:text-zinc-600">{{ __('Previous') }}</span>
             @else
-                <a href="{{ $paginator->previousPageUrl() }}" rel="prev" class="rounded-xl border border-zinc-200 bg-white px-3.5 py-2 text-sm font-medium text-zinc-700 shadow-xs hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800">{{ __('Previous') }}</a>
+                <a href="{{ $paginator->previousPageUrl() }}" rel="prev" class="inline-flex h-8 items-center rounded-md border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-800 hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800">{{ __('Previous') }}</a>
             @endif
             @if ($paginator->hasMorePages())
-                <a href="{{ $paginator->nextPageUrl() }}" rel="next" class="rounded-xl border border-zinc-200 bg-white px-3.5 py-2 text-sm font-medium text-zinc-700 shadow-xs hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800">{{ __('Next') }}</a>
+                <a href="{{ $paginator->nextPageUrl() }}" rel="next" class="inline-flex h-8 items-center rounded-md border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-800 hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800">{{ __('Next') }}</a>
             @else
-                <span class="rounded-xl border border-zinc-200 px-3.5 py-2 text-sm text-zinc-300 dark:border-zinc-800 dark:text-zinc-600">{{ __('Next') }}</span>
+                <span class="inline-flex h-8 items-center rounded-md border border-zinc-200 px-3 text-sm text-zinc-300 dark:border-zinc-800 dark:text-zinc-600">{{ __('Next') }}</span>
             @endif
         </div>
     </nav>

@@ -28,8 +28,8 @@
                 @if ($configured)
                     <form method="POST" action="{{ route('admin.settings.push.test') }}">
                         @csrf
-                        <button type="submit" class="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-50">
-                            <x-ui.icon name="send" class="size-4" />{{ __('Send a test to my devices') }}
+                        <button type="submit" class="inline-flex h-8 items-center gap-1.5 rounded-md border border-emerald-200 bg-white px-3 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-50 dark:border-emerald-500/30 dark:bg-transparent dark:text-emerald-300 dark:hover:bg-emerald-500/10">
+                            <x-ui.icon name="send" class="size-3.5" />{{ __('Send a test to my devices') }}
                         </button>
                     </form>
                 @endif

@@ -7,10 +7,10 @@
 
     <div x-data="liveList('topic-results')" data-live-also="topic-tabs topic-visibility">
     <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div id="topic-tabs" class="inline-flex rounded-xl border border-zinc-200 bg-white p-1 shadow-xs dark:border-zinc-800 dark:bg-zinc-900">
+        <div id="topic-tabs" class="inline-flex gap-0.5 rounded-lg bg-zinc-200/60 p-1 dark:bg-white/[0.06]">
             @foreach (['' => __('All'), 'public' => __('Public'), 'private' => __('Private')] as $value => $label)
                 <a data-live-link href="{{ route('topics.index', array_filter(['q' => $search, 'visibility' => $value])) }}"
-                    @class(['rounded-lg px-3.5 py-1.5 text-sm font-medium transition', 'bg-zinc-900 text-white shadow-sm dark:bg-white dark:text-zinc-900' => ($visibility?->value ?? '') === $value, 'text-zinc-500 hover:text-zinc-900 dark:hover:text-white' => ($visibility?->value ?? '') !== $value])>{{ $label }}</a>
+                    @class(['rounded-md px-3 py-1 text-sm font-medium transition', 'bg-white text-zinc-900 shadow-sm shadow-zinc-950/10 dark:bg-zinc-800 dark:text-white' => ($visibility?->value ?? '') === $value, 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white' => ($visibility?->value ?? '') !== $value])>{{ $label }}</a>
             @endforeach
         </div>
         <form method="GET" data-live class="relative w-full sm:max-w-xs">

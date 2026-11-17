@@ -40,10 +40,10 @@
             <div class="flex flex-wrap items-center gap-2">
                 <div x-data="webPush(@js($topic->name), @js(route('topics.web-push', $topic)))" x-show="supported" x-cloak>
                     <button type="button" @click="toggle()" :disabled="busy || denied"
-                        class="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold shadow-xs transition disabled:opacity-60"
-                        :class="enabled ? 'border-brand-200 bg-brand-50 text-brand-700 dark:border-brand-500/30 dark:bg-brand-500/10 dark:text-brand-300' : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200'"
+                        class="inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-sm font-medium transition-colors disabled:opacity-60"
+                        :class="enabled ? 'border-brand-200 bg-brand-50 text-brand-700 dark:border-brand-500/30 dark:bg-brand-500/10 dark:text-brand-300' : 'border-zinc-300 bg-white text-zinc-800 hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200'"
                         :title="denied ? @js(__('Notifications are blocked in this browser.')) : ''">
-                        <x-ui.icon name="bell" class="size-4" />
+                        <x-ui.icon name="bell" class="size-3.5" />
                         <span x-text="enabled ? @js(__('Browser notified')) : @js(__('Notify this browser'))">{{ __('Notify this browser') }}</span>
                     </button>
                 </div>
@@ -68,11 +68,11 @@
     </section>
 
     <div x-data="{ tab: ['messages','integrate','access'].includes(location.hash.slice(1)) ? location.hash.slice(1) : @js($errors->has('email') ? 'access' : 'messages') }" x-init="$watch('tab', value => history.replaceState(null, '', '#' + value))">
-        <div class="mb-6 flex gap-1 overflow-x-auto overflow-y-hidden shadow-[inset_0_-1px_0_var(--color-zinc-200)] [scrollbar-width:none] dark:shadow-[inset_0_-1px_0_var(--color-zinc-800)]">
+        <div class="scrollbar-none mb-6 flex gap-1 overflow-x-auto overflow-y-hidden border-b border-zinc-200 dark:border-zinc-800">
             @foreach ($tabs as $key => $item)
                 <button type="button" @click="tab = '{{ $key }}'"
-                    class="inline-flex items-center gap-2 border-b-2 px-3.5 py-3 text-sm font-medium whitespace-nowrap transition"
-                    :class="tab === '{{ $key }}' ? 'border-zinc-900 text-zinc-900 dark:border-white dark:text-white' : 'border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'">
+                    class="-mb-px inline-flex items-center gap-1.5 border-b-2 px-2.5 py-2.5 text-sm font-medium whitespace-nowrap transition"
+                    :class="tab === '{{ $key }}' ? 'border-brand-600 text-zinc-900 dark:border-brand-400 dark:text-white' : 'border-transparent text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'">
                     <x-ui.icon :name="$item['icon']" class="size-4" />{{ $item['label'] }}
                 </button>
             @endforeach
@@ -200,10 +200,10 @@
         <div x-show="tab === 'integrate'" x-cloak class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
             <x-ui.card :title="__('Publish from your code')" :description="__('Send a POST request to the topic. Use an access token from your profile.')" icon="code">
                 <div x-data="{ lang: 'curl' }">
-                    <div class="mb-3 flex flex-wrap gap-1">
+                    <div class="mb-3 inline-flex flex-wrap gap-0.5 rounded-lg bg-zinc-200/60 p-1 dark:bg-white/[0.06]">
                         @foreach ($snippets as $key => $snippet)
-                            <button type="button" @click="lang = '{{ $key }}'" class="rounded-lg px-3 py-1.5 text-xs font-semibold transition"
-                                :class="lang === '{{ $key }}' ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900' : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-white/5'">{{ $snippet['label'] }}</button>
+                            <button type="button" @click="lang = '{{ $key }}'" class="rounded-md px-2.5 py-1 text-xs font-medium transition"
+                                :class="lang === '{{ $key }}' ? 'bg-white text-zinc-900 shadow-sm shadow-zinc-950/10 dark:bg-zinc-800 dark:text-white' : 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'">{{ $snippet['label'] }}</button>
                         @endforeach
                     </div>
                     @foreach ($snippets as $key => $snippet)
