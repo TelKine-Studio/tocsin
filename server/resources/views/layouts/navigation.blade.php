@@ -33,7 +33,7 @@
                     <x-ui.icon :name="$item['icon']" class="size-[18px]" />
                     <span class="flex-1">{{ $item['label'] }}</span>
                     @if ($item['count'] ?? null)
-                        <span class="rounded-md bg-zinc-100 px-1.5 py-0.5 text-[11px] font-semibold text-zinc-500 tabular-nums dark:bg-white/10 dark:text-zinc-400 [.nav-link-active_&]:bg-white/15 [.nav-link-active_&]:text-current">{{ $item['count'] }}</span>
+                        <span class="rounded-md bg-zinc-100 px-1.5 py-0.5 text-[11px] font-semibold text-zinc-500 tabular-nums dark:bg-white/10 dark:text-zinc-400">{{ $item['count'] }}</span>
                     @endif
                 </a>
             @endforeach

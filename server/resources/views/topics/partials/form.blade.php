@@ -109,7 +109,7 @@
                             <div class="flex flex-wrap items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
                                 <span class="inline-flex size-6 items-center justify-center rounded-full bg-zinc-100 text-xs font-semibold text-zinc-700 dark:bg-white/10 dark:text-zinc-200" x-text="index + 1"></span>
                                 <span>{{ __('After') }}</span>
-                                <input type="number" min="1" max="1440" required class="form-control w-24 py-1.5" :name="`escalation[${index}][after]`" x-model.number="step.after">
+                                <input type="number" min="1" max="1440" required class="form-control w-24" :name="`escalation[${index}][after]`" x-model.number="step.after">
                                 <span>{{ __('minutes without acknowledgement') }}</span>
                                 <button type="button" class="ml-auto inline-flex size-8 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10" @click="steps.splice(index, 1)">
                                     <x-ui.icon name="trash" class="size-4" /><span class="sr-only">{{ __('Remove') }}</span>

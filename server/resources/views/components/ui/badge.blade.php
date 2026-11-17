@@ -11,7 +11,7 @@
     ];
     $dots = ['zinc' => 'bg-zinc-400', 'brand' => 'bg-brand-500', 'green' => 'bg-emerald-500', 'red' => 'bg-red-500', 'blue' => 'bg-sky-500', 'amber' => 'bg-amber-500', 'violet' => 'bg-violet-500'];
 @endphp
-<span {{ $attributes->merge(['class' => 'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap '.$colors[$color]]) }}>
+<span {{ $attributes->merge(['class' => 'inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium whitespace-nowrap '.$colors[$color]]) }}>
     @if ($dot)<span class="size-1.5 rounded-full {{ $dots[$color] }}"></span>@endif
     @if ($icon)<x-ui.icon :name="$icon" class="size-3" />@endif
     {{ $slot }}

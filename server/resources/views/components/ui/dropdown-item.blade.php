@@ -3,5 +3,5 @@
 @if ($href)
     <a href="{{ $href }}" {{ $attributes->merge(['class' => $classes]) }}>@if ($icon)<x-ui.icon :name="$icon" class="size-4 opacity-70" />@endif{{ $slot }}</a>
 @else
-    <button type="submit" {{ $attributes->merge(['class' => $classes]) }}>@if ($icon)<x-ui.icon :name="$icon" class="size-4 opacity-70" />@endif{{ $slot }}</button>
+    <button type="{{ $attributes->get('type', 'submit') }}" {{ $attributes->except('type')->merge(['class' => $classes]) }}>@if ($icon)<x-ui.icon :name="$icon" class="size-4 opacity-70" />@endif{{ $slot }}</button>
 @endif

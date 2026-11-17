@@ -11,5 +11,5 @@
             <span x-text="copied ? @js(__('Copied')) : @js(__('Copy'))">{{ __('Copy') }}</span>
         </button>
     </div>
-    <pre class="overflow-x-auto p-4 font-mono text-[12.5px] leading-relaxed text-zinc-100"><code x-ref="source">{{ $slot }}</code></pre>
+    <pre class="scrollbar-none overflow-x-auto p-4 font-mono text-[12.5px] leading-relaxed text-zinc-100"><code x-ref="source">{{ $slot }}</code></pre>
 </div>

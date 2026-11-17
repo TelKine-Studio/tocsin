@@ -15,8 +15,8 @@
         </select>
         <button type="button" id="{{ $id }}" x-ref="button" @click="toggle()" @keydown.arrow-down.prevent="move(1)" @keydown.arrow-up.prevent="move(-1)" @keydown.enter.prevent="pick()" @keydown.space.prevent="pick()"
             aria-haspopup="listbox" :aria-expanded="open.toString()"
-            @class(['form-control flex items-center gap-2 pr-10 text-left', '!py-1.5 !pr-8 text-xs' => $size === 'sm', 'form-control-invalid' => $errors->has($name)])
-            :class="open && '!border-brand-500 ring-4 ring-brand-500/15'">
+            @class(['form-control flex items-center gap-2 pr-10 text-left', '!pr-8 text-[13px]' => $size === 'sm', 'form-control-invalid' => $errors->has($name)])
+            :class="open && '!border-brand-500 ring-2 ring-brand-500/20'">
             <span class="min-w-0 flex-1 truncate" x-text="label">{{ $current }}</span>
             <x-ui.icon name="chevron-down" class="pointer-events-none absolute top-1/2 {{ $size === 'sm' ? 'right-2.5 size-3.5' : 'right-3.5 size-4' }} -translate-y-1/2 text-zinc-400 transition" ::class="open && 'rotate-180'" />
         </button>
