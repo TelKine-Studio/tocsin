@@ -53,5 +53,5 @@ Route::middleware([AuthenticateApi::class, EnsureUserIsActive::class])->group(fu
     Route::get('{topic}/{format}', [NtfyController::class, 'poll'])
         ->where(['topic' => $topic, 'format' => 'json|sse|raw'])->middleware('throttle:api')->name('ntfy.poll');
 
-    Route::get('{topic}/auth', [NtfyController::class, 'auth'])->where('topic', $topic)->name('ntfy.auth');
+    Route::get('{topic}/auth', [NtfyController::class, 'auth'])->where('topic', $topic)->middleware('throttle:api')->name('ntfy.auth');
 });

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Device;
 use App\Models\Topic;
+use App\Push\WebPushEndpoint;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -17,7 +18,11 @@ class WebPushController extends Controller
         $this->authorize('view', $topic);
 
         $data = $request->validate([
-            'subscription.endpoint' => ['required', 'url:https,http', 'max:2000'],
+            'subscription.endpoint' => ['required', 'url:https', 'max:2000', function (string $attribute, mixed $value, \Closure $fail) {
+                if (! WebPushEndpoint::allowed($value)) {
+                    $fail(__('This is not the address of a browser push service.'));
+                }
+            }],
             'subscription.keys.p256dh' => ['required', 'string', 'max:200'],
             'subscription.keys.auth' => ['required', 'string', 'max:100'],
             'enabled' => ['required', 'boolean'],

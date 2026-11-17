@@ -9,6 +9,17 @@ All notable changes to Tocsin are documented here. The format follows [Keep a Ch
 - The "Acknowledged by …" notification is no longer sent to whoever acknowledged, and recalls the message (excerpt) it is about.
 - Fixed: with cached routes (the Docker image), adding a user from Administration → Users only reloaded the page, and JSON publishing (`POST /`) was redirected to the dashboard. The two redirects now answer GET only.
 
+### Security
+- Email + password on the ntfy API (`curl -u email:password`): limited to 5 wrong passwords per minute per account (and 20 per address), and refused for accounts with two-factor authentication, which use an access token. `GET /<topic>/auth` is rate limited.
+- Topic owners no longer receive the list of every user (name and email) when adding a member: only administrators get the suggestions.
+- Browser push subscriptions must point to a browser push service (Google, Mozilla, Microsoft, Apple); the answer of the push service is no longer stored.
+- Relay: a device token can be reached by at most 5 instances, and the daily quota can no longer be overrun by parallel requests.
+- Removing a member of a private topic moves its live channel: connections opened before stop receiving its messages.
+- Changing the email of an account and getting new recovery codes ask for the password; an active two-factor setup can no longer be replaced without disabling it; changing the password closes the other sessions.
+- Single sign-on only opens an existing account when the provider says the email is verified, and asks for the two-factor code of accounts that have one.
+- Only proxies on private networks are trusted, never for the host name; password-reset and invitation links are built on the configured URL.
+- The ntfy API answers the same for a private topic you cannot read as for a missing one; tokens limited to some topics only list those.
+
 ### Apps
 - Tapping a notification opens its message: the list scrolls to it and highlights it.
 - Acknowledging from a device clears its notification there, and the device is no longer told about its own acknowledgement.

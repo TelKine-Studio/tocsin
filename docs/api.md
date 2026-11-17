@@ -10,11 +10,11 @@ Endpoints that read or publish accept, in order of preference:
 | --- | --- |
 | Access token | `Authorization: Bearer <token>` |
 | Access token as Basic password | `curl -u :<token>` |
-| Email and password (Basic) | `curl -u email@example.com:password` |
+| Email and password (Basic) | `curl -u email@example.com:password` — not for accounts with two-factor authentication (use a token); 5 wrong passwords per minute block the account for a minute |
 
 Tokens are created in **Profile → Access tokens** or with `POST /auth/token`. Requests without credentials are treated as anonymous: they can read **public** topics and publish to public topics that allow anonymous publishing.
 
-Invalid credentials return `401`. A valid user without access returns `403`.
+Invalid credentials return `401`. A private topic the user cannot read answers `404`, like a missing topic; a topic they can read but not publish to answers `403`.
 
 ## Instance
 

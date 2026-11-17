@@ -7,7 +7,9 @@ use App\Models\Invitation;
 use App\Models\Topic;
 use App\Models\User;
 use App\Support\AccountQuota;
+use App\Support\PublicUrl;
 use App\Support\Settings;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Http\Request;
@@ -30,6 +32,8 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        ResetPassword::createUrlUsing(fn ($user, string $token) => PublicUrl::route('password.reset', ['token' => $token, 'email' => $user->getEmailForPasswordReset()]));
+
         // Search that behaves the same on SQLite and PostgreSQL: any column
         // type (text, JSON, UUID), case-insensitive, the term escaped.
         QueryBuilder::macro('whereContains', function (array|string $columns, string $term, string $boolean = 'and') {

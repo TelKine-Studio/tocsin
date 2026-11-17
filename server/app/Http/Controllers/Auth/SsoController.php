@@ -86,6 +86,12 @@ class SsoController extends Controller
         $email = Str::lower($profile->json('email'));
         $user = User::query()->where('email', $email)->first();
 
+        // An existing account is only opened by a provider that vouches for
+        // the address: a missing claim could be an address anyone can set.
+        if ($user && $profile->json('email_verified') !== true) {
+            return $this->fail(__('Your identity provider does not confirm that :email is verified: sign in with your password.', ['email' => $email]));
+        }
+
         if (! $user) {
             $domains = collect(explode(',', (string) $this->settings->get('sso.allowed_domains')))->map(fn ($d) => Str::lower(trim($d)))->filter();
 
@@ -106,6 +112,14 @@ class SsoController extends Controller
 
         if (! $user->is_active) {
             return $this->fail(__('This account has been disabled.'));
+        }
+
+        // Accounts protected by 2FA still give their code, as with a password.
+        if ($user->hasTwoFactor()) {
+            $request->session()->put(['login.id' => $user->id, 'login.remember' => true]);
+            Audit::log('auth.sso_login', $user, ['two_factor' => 'pending'], $user);
+
+            return redirect()->route('two-factor.challenge');
         }
 
         Auth::login($user, remember: true);

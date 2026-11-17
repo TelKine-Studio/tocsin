@@ -55,7 +55,7 @@ class WebPushSender
             foreach ($devices as $device) {
                 $subscription = json_decode((string) $device->web_subscription, true);
 
-                if (! isset($subscription['endpoint'])) {
+                if (! isset($subscription['endpoint']) || ! WebPushEndpoint::allowed($subscription['endpoint'])) {
                     $results[$device->id] = new ApnsResult(410, 'Unregistered');
 
                     continue;
@@ -72,9 +72,11 @@ class WebPushSender
                     continue;
                 }
 
+                // Only the status is kept: the body of the answer is never stored.
+                $status = $report->getResponse()?->getStatusCode() ?? 0;
                 $results[$deviceId] = $report->isSuccess()
                     ? new ApnsResult(200)
-                    : new ApnsResult($report->isSubscriptionExpired() ? 410 : ($report->getResponse()?->getStatusCode() ?? 0), $report->isSubscriptionExpired() ? 'Unregistered' : $report->getReason());
+                    : new ApnsResult($report->isSubscriptionExpired() ? 410 : $status, $report->isSubscriptionExpired() ? 'Unregistered' : ($status ? 'HTTP '.$status : 'Push service unreachable'));
             }
         } catch (Throwable $e) {
             Log::warning('Web push failed', ['error' => $e->getMessage()]);

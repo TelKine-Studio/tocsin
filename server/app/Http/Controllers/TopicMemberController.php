@@ -59,6 +59,9 @@ class TopicMemberController extends Controller
         $this->authorize('update', $topic);
 
         $topic->members()->detach($user->id);
+        if (! $topic->isPublic()) {
+            $topic->rotateChannel();
+        }
         Audit::log('topic.member_removed', $topic, ['member' => $user->email]);
 
         return back()->with('status', __('Access removed.'));

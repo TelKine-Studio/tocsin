@@ -20,6 +20,12 @@ class TwoFactorController extends Controller
     /** Step 1: generate a secret and show the QR code (not active yet). */
     public function enable(Request $request): RedirectResponse
     {
+        // Replacing an active secret would turn 2FA off: it must be disabled
+        // first, which asks for the password.
+        if ($request->user()->hasTwoFactor()) {
+            return redirect()->to(route('profile.edit').'#security')->with('status', __('Two-factor authentication is already enabled.'));
+        }
+
         $request->user()->forceFill([
             'two_factor_secret' => $this->twoFactor->generateSecret(),
             'two_factor_confirmed_at' => null,
@@ -50,6 +56,9 @@ class TwoFactorController extends Controller
 
     public function regenerateCodes(Request $request): RedirectResponse
     {
+        $request->validate(['recovery_password' => ['required', 'current_password']]);
+        abort_unless($request->user()->hasTwoFactor(), 404);
+
         $codes = $this->twoFactor->recoveryCodes();
         $request->user()->forceFill(['two_factor_recovery_codes' => $codes->all()])->save();
 

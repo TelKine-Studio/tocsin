@@ -24,8 +24,13 @@ $app = Application::configure(basePath: dirname(__DIR__))
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // Tocsin is meant to run behind a reverse proxy (Coolify / Traefik, ...).
-        $middleware->trustProxies(at: '*');
+        // Tocsin is meant to run behind a reverse proxy (Coolify / Traefik, ...),
+        // on the same machine or network: only private addresses are trusted,
+        // and never for the host name (links are built on the configured URL).
+        $middleware->trustProxies(
+            at: ['127.0.0.1', '::1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', 'fc00::/7'],
+            headers: Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_PORT | Request::HEADER_X_FORWARDED_PROTO | Request::HEADER_X_FORWARDED_PREFIX,
+        );
         $middleware->append(CloudflareClientIp::class);
 
         $middleware->web(append: [

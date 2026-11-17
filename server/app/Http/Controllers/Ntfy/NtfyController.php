@@ -214,16 +214,16 @@ class NtfyController extends Controller
             ]);
         }
 
-        if (! $topic) {
+        // A private topic the caller cannot read answers exactly like a
+        // missing one: its name must not reveal that it exists.
+        if (! $topic || ! $topic->canRead($user)) {
             abort($user
                 ? $this->error(404, 40401, 'topic not found')
                 : $this->error(401, 40101, 'unauthorized: topic not found or authentication required'));
         }
 
-        $allowed = $forWriting ? $topic->canWrite($user) : $topic->canRead($user);
-
-        if (! $allowed) {
-            abort($user ? $this->error(403, 40301, 'forbidden') : $this->error(401, 40101, 'unauthorized'));
+        if ($forWriting && ! $topic->canWrite($user)) {
+            abort($user ? $this->error(403, 40301, 'forbidden') : $this->error(401, 40101, 'unauthorized: topic not found or authentication required'));
         }
 
         return $topic;

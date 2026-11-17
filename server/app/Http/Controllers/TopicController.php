@@ -99,7 +99,9 @@ class TopicController extends Controller
                 ? $topic->messages()->whereNull('dispatched_at')->orderBy('scheduled_at')->get()
                 : collect(),
             'serverUrl' => rtrim($settings->get('app.url') ?: url('/'), '/'),
-            'users' => $request->user()->can('update', $topic)
+            // The directory of the instance is only shown to its administrators:
+            // topic owners type the email of the person they invite.
+            'users' => $request->user()->isAdmin()
                 ? User::query()->where('is_active', true)->whereKeyNot($topic->owner_id)->whereNotIn('id', $topic->members->modelKeys())->orderBy('name')->get(['id', 'name', 'email'])
                 : collect(),
             'priorities' => Priority::cases(),

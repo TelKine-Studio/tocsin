@@ -1219,5 +1219,12 @@
     "Paste the URL it gives you in the webhook settings of your tool.": "Collez l’adresse obtenue dans les réglages de webhook de votre outil.",
     "State": "État",
     "Time": "Heure",
-    "Event": "Événement"
+    "Event": "Événement",
+    "Too many failed attempts. Try again in :seconds seconds.": "Trop de tentatives échouées. Réessayez dans :seconds secondes.",
+    "Two-factor authentication is on for this account: use an access token instead of the password.": "La double authentification est activée sur ce compte : utilisez un jeton d’accès plutôt que le mot de passe.",
+    "This is not the address of a browser push service.": "Ce n’est pas l’adresse d’un service de notifications de navigateur.",
+    "Two-factor authentication is already enabled.": "La double authentification est déjà activée.",
+    "Only needed to change the email address.": "Nécessaire uniquement pour changer l’adresse e-mail.",
+    "Enter your current password to change your email address.": "Saisissez votre mot de passe actuel pour changer votre adresse e-mail.",
+    "Your identity provider does not confirm that :email is verified: sign in with your password.": "Votre fournisseur d’identité ne confirme pas que :email est vérifiée : connectez-vous avec votre mot de passe."
 }

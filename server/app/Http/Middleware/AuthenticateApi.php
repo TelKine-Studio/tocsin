@@ -5,9 +5,11 @@ namespace App\Http\Middleware;
 use App\Models\User;
 use Closure;
 use Illuminate\Auth\AuthenticationException;
+use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
 use Laravel\Sanctum\PersonalAccessToken;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -21,6 +23,10 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class AuthenticateApi
 {
+    public const MAX_ATTEMPTS_PER_ACCOUNT = 5;
+
+    public const MAX_ATTEMPTS_PER_IP = 20;
+
     public function handle(Request $request, Closure $next): Response
     {
         // ntfy clients may pass the Authorization header base64 encoded in ?auth=.
@@ -83,8 +89,32 @@ class AuthenticateApi
             return null;
         }
 
-        $user = User::query()->where('email', mb_strtolower($email))->first();
+        // Email and password: limited attempts per account and per address,
+        // like the login form, and never for accounts protected by 2FA.
+        $email = mb_strtolower($email);
+        $keys = ['api-basic:'.$email, 'api-basic-ip:'.$request->ip()];
+        foreach ($keys as $i => $key) {
+            if (RateLimiter::tooManyAttempts($key, $i === 0 ? self::MAX_ATTEMPTS_PER_ACCOUNT : self::MAX_ATTEMPTS_PER_IP)) {
+                throw new ThrottleRequestsException(__('Too many failed attempts. Try again in :seconds seconds.', ['seconds' => RateLimiter::availableIn($key)]));
+            }
+        }
 
-        return $user && Hash::check($password, $user->password) ? $user : null;
+        $user = User::query()->where('email', $email)->first();
+
+        if (! $user || ! Hash::check($password, $user->password)) {
+            foreach ($keys as $key) {
+                RateLimiter::hit($key, 60);
+            }
+
+            return null;
+        }
+
+        RateLimiter::clear($keys[0]);
+
+        if ($user->hasTwoFactor()) {
+            throw new AuthenticationException(__('Two-factor authentication is on for this account: use an access token instead of the password.'));
+        }
+
+        return $user;
     }
 }

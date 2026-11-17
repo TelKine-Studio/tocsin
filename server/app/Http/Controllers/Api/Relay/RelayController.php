@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Relay;
 use App\Http\Controllers\Controller;
 use App\Models\Device;
 use App\Models\RelayClient;
+use App\Models\RelayToken;
 use App\Models\RelayUsage;
 use App\Push\ApnsClient;
 use App\Push\ApnsException;
@@ -14,6 +15,7 @@ use App\Support\RelayPlans;
 use App\Support\Settings;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\Rule;
 
@@ -84,49 +86,79 @@ class RelayController extends Controller
             return response()->json(['error' => 'rate_limited', 'message' => 'Too many notifications per minute.', 'retry_after' => RateLimiter::availableIn($burstKey)], 429);
         }
 
-        $remaining = max(0, $client->effectiveDailyLimit() - $client->usedToday());
+        // Devices bound to too many other instances are refused (see RelayToken).
+        $hashes = $notifications->mapWithKeys(fn ($n, $i) => [$i => RelayToken::hash($n['platform'] ?? 'ios', $n['token'])]);
+        $refused = RelayToken::claim($client, $hashes->values()->all())->flip();
 
-        if ($remaining === 0) {
+        // The quota is reserved under a lock, so parallel requests cannot all
+        // see the same remaining count and go over it together.
+        $allowed = $notifications->keys()->reject(fn ($i) => isset($refused[$hashes[$i]]))->values();
+        $inFlightKey = 'relay-in-flight:'.$client->id.':'.now()->toDateString();
+        $reserved = Cache::lock('relay-quota:'.$client->id, 10)->block(10, function () use ($client, $allowed, $inFlightKey) {
+            $remaining = max(0, $client->effectiveDailyLimit() - $client->usedToday() - (int) Cache::get($inFlightKey, 0));
+            $reserved = min($remaining, $allowed->count());
+            if ($reserved > 0) {
+                Cache::add($inFlightKey, 0, now()->addDay());
+                Cache::increment($inFlightKey, $reserved);
+            }
+
+            return $reserved;
+        });
+
+        if ($reserved === 0 && $allowed->isNotEmpty()) {
             RelayUsage::record($client, 0, 0, $notifications->count());
 
             return response()->json(['error' => 'quota_exceeded', 'message' => 'Daily quota reached.', 'usage' => $this->usagePayload($client)], 429);
         }
 
+        $sendable = $allowed->take($reserved)->flip();
         $results = [];
         $sent = $failed = $rejected = 0;
 
-        foreach ($notifications as $index => $notification) {
-            if ($index >= $remaining) {
-                $results[] = ['ref' => $notification['ref'], 'status' => 429, 'reason' => 'RelayQuotaExceeded'];
-                $rejected++;
+        try {
+            foreach ($notifications as $index => $notification) {
+                if (isset($refused[$hashes[$index]])) {
+                    $results[] = ['ref' => $notification['ref'], 'status' => 403, 'reason' => 'RelayTokenNotAllowed'];
+                    $rejected++;
 
-                continue;
+                    continue;
+                }
+                if (! isset($sendable[$index])) {
+                    $results[] = ['ref' => $notification['ref'], 'status' => 429, 'reason' => 'RelayQuotaExceeded'];
+                    $rejected++;
+
+                    continue;
+                }
+
+                RateLimiter::hit($burstKey, 60);
+
+                $platform = $notification['platform'] ?? 'ios';
+                $device = new Device([
+                    'platform' => $platform,
+                    'token' => $platform === 'ios' ? strtolower($notification['token']) : $notification['token'],
+                    'environment' => $notification['environment'],
+                ]);
+
+                try {
+                    $payload = $this->sanitizePayload($notification['payload']);
+                    $headers = $this->sanitizeHeaders($notification['headers'] ?? []);
+                    $result = $platform === 'android'
+                        ? $fcm->send($device, PushPayload::forFcm($payload), ($headers['apns-priority'] ?? '10') === '10', $headers['apns-collapse-id'] ?? null)
+                        : $apns->send($device, $payload, $headers);
+                    $results[] = ['ref' => $notification['ref'], 'status' => $result->status, 'reason' => $result->reason];
+                    $result->successful() ? $sent++ : $failed++;
+                } catch (ApnsException $e) {
+                    $results[] = ['ref' => $notification['ref'], 'status' => 502, 'reason' => 'RelayUpstreamError'];
+                    $failed++;
+                }
             }
-
-            RateLimiter::hit($burstKey, 60);
-
-            $platform = $notification['platform'] ?? 'ios';
-            $device = new Device([
-                'platform' => $platform,
-                'token' => $platform === 'ios' ? strtolower($notification['token']) : $notification['token'],
-                'environment' => $notification['environment'],
-            ]);
-
-            try {
-                $payload = $this->sanitizePayload($notification['payload']);
-                $headers = $this->sanitizeHeaders($notification['headers'] ?? []);
-                $result = $platform === 'android'
-                    ? $fcm->send($device, PushPayload::forFcm($payload), ($headers['apns-priority'] ?? '10') === '10', $headers['apns-collapse-id'] ?? null)
-                    : $apns->send($device, $payload, $headers);
-                $results[] = ['ref' => $notification['ref'], 'status' => $result->status, 'reason' => $result->reason];
-                $result->successful() ? $sent++ : $failed++;
-            } catch (ApnsException $e) {
-                $results[] = ['ref' => $notification['ref'], 'status' => 502, 'reason' => 'RelayUpstreamError'];
-                $failed++;
+        } finally {
+            RelayUsage::record($client, $sent, $failed, $rejected);
+            if ($reserved > 0) {
+                Cache::decrement($inFlightKey, $reserved);
             }
         }
 
-        RelayUsage::record($client, $sent, $failed, $rejected);
         $client->forceFill(['last_used_at' => now()])->saveQuietly();
 
         return response()->json([

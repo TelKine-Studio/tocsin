@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Invitation;
 use App\Notifications\InvitationNotification;
 use App\Support\Audit;
+use App\Support\PublicUrl;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -59,7 +60,7 @@ class InvitationController extends Controller
 
     protected function deliver(Request $request, Invitation $invitation, string $token): RedirectResponse
     {
-        $url = route('invitations.show', $token);
+        $url = PublicUrl::route('invitations.show', $token);
         $mailed = false;
 
         if ($request->boolean('send_email') && config('mail.default') !== 'log') {

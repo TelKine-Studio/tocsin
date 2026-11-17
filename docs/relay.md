@@ -47,3 +47,5 @@ Any Tocsin server can act as a relay (this is what Telkine runs). A relay receiv
 | `POST /api/relay/v1/push` | `Bearer <relay key>` | Up to 100 notifications: `ref`, `token`, `environment`, `payload` (`aps` + `tocsin` only), `headers` (`apns-priority`, `apns-expiration`, `apns-collapse-id`). Returns one result per `ref` with Apple's status and reason. |
 
 Errors: `401 invalid_key`, `403 disabled`, `429 quota_exceeded` / `rate_limited`, `503 unavailable` (relay without APNs key).
+
+A device token can be reached by at most 5 instances (the app can be connected to several servers): an instance that never pushed to a device cannot reach it once 5 others do, and gets `403 RelayTokenNotAllowed` for that notification. Bindings unused for 90 days are forgotten.

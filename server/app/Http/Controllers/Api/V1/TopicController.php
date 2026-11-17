@@ -19,7 +19,10 @@ class TopicController extends Controller
             ->readableBy($request->user())
             ->with('members')
             ->orderBy('name')
-            ->get();
+            ->get()
+            // A token limited to some topics only lists those.
+            ->filter(fn (Topic $topic) => $topic->canRead($request->user()))
+            ->values();
 
         return TopicResource::collection($topics);
     }
