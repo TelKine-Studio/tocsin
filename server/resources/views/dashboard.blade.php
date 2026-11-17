@@ -68,7 +68,7 @@
         <x-ui.stat :label="__('Topics')" :value="number_format($stats['topics'])" icon="hash" :href="route('topics.index')" :hint="__('Accessible to you')" />
     </div>
 
-    <div class="mt-6 grid gap-6 xl:grid-cols-3">
+    <div class="mt-6 grid gap-6 xl:grid-cols-3 [&>*]:min-w-0">
         <div class="space-y-6 xl:col-span-2">
             <x-ui.card :title="__('Activity')" :description="__('Messages published over the last 14 days')" icon="bar-chart">
                 <div class="flex h-44 items-end gap-1.5 sm:gap-2.5">
