@@ -70,7 +70,7 @@
 
     <div class="mt-6 grid gap-6 xl:grid-cols-3 [&>*]:min-w-0">
         <div class="space-y-6 xl:col-span-2">
-            <x-ui.card :title="__('Activity')" :description="__('Messages published over the last 14 days')" icon="bar-chart">
+            <x-ui.card :title="__('Activity')" :description="__('Messages published over the last 14 days')" icon="bar-chart" class="overflow-x-clip">
                 <div class="flex h-44 items-end gap-1.5 sm:gap-2.5">
                     @foreach ($activity as $day)
                         <div class="group relative flex h-full flex-1 flex-col justify-end">
