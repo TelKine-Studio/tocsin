@@ -3,6 +3,7 @@
 use App\Http\Middleware\CloudflareClientIp;
 use App\Http\Middleware\EnsureApplicationIsInstalled;
 use App\Http\Middleware\EnsureUserIsActive;
+use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\SetLocale;
 use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
 use Illuminate\Foundation\Application;
@@ -34,6 +35,7 @@ $app = Application::configure(basePath: dirname(__DIR__))
         $middleware->append(CloudflareClientIp::class);
 
         $middleware->web(append: [
+            SecurityHeaders::class,
             EnsureApplicationIsInstalled::class,
             EnsureUserIsActive::class,
             SetLocale::class,
@@ -45,6 +47,11 @@ $app = Application::configure(basePath: dirname(__DIR__))
         $middleware->prependToPriorityList(
             before: AuthenticatesRequests::class,
             prepend: EnsureApplicationIsInstalled::class,
+        );
+        // https links and redirects decided before the redirect to the login page.
+        $middleware->prependToPriorityList(
+            before: EnsureApplicationIsInstalled::class,
+            prepend: SecurityHeaders::class,
         );
 
         $middleware->redirectGuestsTo(fn () => route('login'));

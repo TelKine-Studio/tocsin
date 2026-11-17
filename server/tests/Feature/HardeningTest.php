@@ -7,6 +7,7 @@ use App\Models\RelayToken;
 use App\Models\Topic;
 use App\Models\User;
 use App\Push\WebPushEndpoint;
+use App\Support\Installation;
 use App\Support\Settings;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -194,5 +195,17 @@ class HardeningTest extends TestCase
         $token = $owner->createToken('one', ['topic:billing'])->plainTextToken;
         $this->app['auth']->forgetGuards();
         $this->withToken($token)->getJson('/api/v1/topics')->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.name', 'billing');
+    }
+
+    public function test_https_headers_and_redirects_follow_the_instance_url(): void
+    {
+        User::factory()->create();
+        Installation::flush();
+        app(Settings::class)->set(['app.url' => 'https://push.example.com']);
+
+        $this->get('http://push.example.com/dashboard')->assertRedirect('https://push.example.com/login')
+            ->assertHeader('Strict-Transport-Security', 'max-age=31536000')
+            ->assertHeader('Content-Security-Policy');
+        $this->get('http://10.0.0.9:8080/dashboard')->assertRedirect()->assertHeaderMissing('Strict-Transport-Security');
     }
 }

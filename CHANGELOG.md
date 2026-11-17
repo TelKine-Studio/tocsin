@@ -10,6 +10,7 @@ All notable changes to Tocsin are documented here. The format follows [Keep a Ch
 - Fixed: with cached routes (the Docker image), adding a user from Administration → Users only reloaded the page, and JSON publishing (`POST /`) was redirected to the dashboard. The two redirects now answer GET only.
 
 ### Security
+- HSTS and a minimal content security policy on the dashboard; links and redirects are https when the instance URL is https, even when the proxy reaches Tocsin over plain HTTP.
 - Email + password on the ntfy API (`curl -u email:password`): limited to 5 wrong passwords per minute per account (and 20 per address), and refused for accounts with two-factor authentication, which use an access token. `GET /<topic>/auth` is rate limited.
 - Topic owners no longer receive the list of every user (name and email) when adding a member: only administrators get the suggestions.
 - Browser push subscriptions must point to a browser push service (Google, Mozilla, Microsoft, Apple); the answer of the push service is no longer stored.
