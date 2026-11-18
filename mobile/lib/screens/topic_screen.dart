@@ -191,17 +191,21 @@ class _TopicScreenState extends State<TopicScreen> {
                   ),
                 _menu(context, subscription),
               ],
+              // Stays under the title while scrolling: each tap brings the
+              // next waiting alert into view.
+              bottom: pending > 0
+                  ? PreferredSize(
+                      preferredSize: const Size.fromHeight(52),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                        child: _PendingSummary(
+                          count: pending,
+                          onTap: () => _showNextPending(pendingIds),
+                        ),
+                      ),
+                    )
+                  : null,
             ),
-            if (pending > 0)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 4),
-                  child: _PendingSummary(
-                    count: pending,
-                    onTap: () => _showNextPending(pendingIds),
-                  ),
-                ),
-              ),
             if (messages.isEmpty)
               SliverFillRemaining(
                 hasScrollBody: false,
