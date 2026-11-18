@@ -3,7 +3,9 @@ import 'package:tocsin/services/pairing_link.dart';
 
 void main() {
   test('reads the server, topic and code of a QR code', () {
-    final link = PairingLink.parse('https://push.telkine.net/m/backups?code=abc')!;
+    final link = PairingLink.parse(
+      'https://push.telkine.net/m/backups?code=abc',
+    )!;
     expect(link.serverUrl, 'https://push.telkine.net');
     expect(link.topic, 'backups');
     expect(link.code, 'abc');

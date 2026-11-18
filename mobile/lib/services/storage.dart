@@ -179,4 +179,24 @@ class Storage {
   String _hiddenKey(String subscriptionId) => 'hidden:$subscriptionId';
 
   String _tokenKey(String serverUrl) => 'token:$serverUrl';
+
+  static const _pendingAcksKey = 'pending_acks';
+
+  /// Acknowledgements not delivered yet (no network): sent again later.
+  Future<List<Map<String, dynamic>>> loadPendingAcks() async {
+    final raw = (await _prefs()).getString(_pendingAcksKey);
+    if (raw == null) return [];
+    return (jsonDecode(raw) as List)
+        .map((e) => (e as Map).cast<String, dynamic>())
+        .toList();
+  }
+
+  Future<void> savePendingAcks(List<Map<String, dynamic>> acks) async {
+    final prefs = await _prefs();
+    if (acks.isEmpty) {
+      await prefs.remove(_pendingAcksKey);
+    } else {
+      await prefs.setString(_pendingAcksKey, jsonEncode(acks));
+    }
+  }
 }

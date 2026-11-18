@@ -36,9 +36,8 @@ void main() {
 
     // Unsubscribing forgets it all.
     await storage.deleteMessages('s1');
-    expect(
-      (await storage.addMessages('s1', [message(1)])).map((m) => m.id),
-      [1],
-    );
+    expect((await storage.addMessages('s1', [message(1)])).map((m) => m.id), [
+      1,
+    ]);
   });
 }

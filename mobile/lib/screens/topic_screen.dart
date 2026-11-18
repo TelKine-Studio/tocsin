@@ -98,6 +98,19 @@ class _TopicScreenState extends State<TopicScreen> {
     });
   }
 
+  /// Each tap on the summary brings the next waiting alert into view.
+  int _pendingCursor = 0;
+
+  void _showNextPending(List<int> ids) {
+    if (ids.isEmpty) return;
+    final id = ids[_pendingCursor % ids.length];
+    _pendingCursor++;
+    setState(() {
+      _focusId = id;
+      _focusAttempts = 0;
+    });
+  }
+
   Future<void> _refresh() async {
     try {
       await _state.refresh(widget.subscriptionId);
@@ -145,7 +158,13 @@ class _TopicScreenState extends State<TopicScreen> {
       _focusAttempts = 0;
     }
     _scheduleFocus(messages);
-    final pending = messages.where((m) => m.awaitsAck).length;
+    final pendingIds = [
+      for (final m in messages)
+        if (m.awaitsAck &&
+            state.ackProgress(subscription.id, m.id) != AckProgress.done)
+          m.id,
+    ];
+    final pending = pendingIds.length;
     final locale = Localizations.localeOf(context).toString();
 
     return Scaffold(
@@ -177,7 +196,10 @@ class _TopicScreenState extends State<TopicScreen> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 4, 20, 4),
-                  child: _PendingSummary(count: pending),
+                  child: _PendingSummary(
+                    count: pending,
+                    onTap: () => _showNextPending(pendingIds),
+                  ),
                 ),
               ),
             if (messages.isEmpty)
@@ -502,41 +524,61 @@ class _Header extends StatelessWidget {
 }
 
 class _PendingSummary extends StatelessWidget {
-  const _PendingSummary({required this.count});
+  const _PendingSummary({required this.count, required this.onTap});
 
   final int count;
+
+  /// Brings the next alert waiting for an acknowledgement into view.
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final dark = theme.brightness == Brightness.dark;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
+    final accent = dark ? const Color(0xFFFBBF24) : const Color(0xFFB45309);
+
+    return Semantics(
+      button: true,
+      hint: S.of(context).t('pending_show'),
+      child: Material(
         color: const Color(0xFFF59E0B).withValues(alpha: dark ? 0.16 : 0.12),
         borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.notifications_active_rounded,
-            size: 18,
-            color: dark ? const Color(0xFFFBBF24) : const Color(0xFFB45309),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              count == 1
-                  ? S.of(context).t('pending_ack_one')
-                  : S.of(context).t('pending_acks', {'count': '$count'}),
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: dark ? const Color(0xFFFDE68A) : const Color(0xFF92400E),
-              ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.selectionClick();
+            onTap();
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.notifications_active_rounded,
+                  size: 18,
+                  color: accent,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    count == 1
+                        ? S.of(context).t('pending_ack_one')
+                        : S.of(context).t('pending_acks', {'count': '$count'}),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: dark
+                          ? const Color(0xFFFDE68A)
+                          : const Color(0xFF92400E),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(Icons.arrow_downward_rounded, size: 18, color: accent),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -626,20 +668,18 @@ class _MessageCard extends StatelessWidget {
 
     final messenger = ScaffoldMessenger.of(context);
     final s = S.of(context);
+    HapticFeedback.lightImpact();
+    // The card shows the progress; only a refusal needs a message.
     final error = await context.read<AppState>().acknowledge(
       subscriptionId,
       ack,
       messageId: message.id,
     );
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          error == null
-              ? s.t('ack_done')
-              : s.t('action_failed', {'error': error}),
-        ),
-      ),
-    );
+    if (error != null) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(s.t('ack_refused', {'error': error}))),
+      );
+    }
   }
 
   @override
@@ -653,7 +693,10 @@ class _MessageCard extends StatelessWidget {
     final priority = _priorityStyle(message.priority, scheme);
     final attachment = message.attachment;
     final hasTitle = message.title?.isNotEmpty == true;
-    final awaiting = message.awaitsAck;
+    final progress = context.select<AppState, AckProgress?>(
+      (state) => state.ackProgress(subscriptionId, message.id),
+    );
+    final awaiting = message.awaitsAck && progress != AckProgress.done;
     final muted = scheme.onSurfaceVariant;
 
     // No frame: only alerts waiting for an acknowledgement get a tint.
@@ -783,12 +826,24 @@ class _MessageCard extends StatelessWidget {
                     ],
                     if (message.ack != null) ...[
                       const SizedBox(height: 10),
-                      awaiting
-                          ? _AckRequest(
-                              reminders: message.ack!.reminders,
-                              onAcknowledge: () => _acknowledge(context),
-                            )
-                          : _AckDone(ack: message.ack!, locale: locale),
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 200),
+                        child: awaiting
+                            ? _AckRequest(
+                                key: ValueKey(progress),
+                                reminders: message.ack!.reminders,
+                                progress: progress,
+                                onAcknowledge: () => _acknowledge(context),
+                                onRetry: () =>
+                                    context.read<AppState>().retryAcks(),
+                              )
+                            : _AckDone(
+                                ack: message.awaitsAck
+                                    ? const MessageAck(acknowledged: true)
+                                    : message.ack!,
+                                locale: locale,
+                              ),
+                      ),
                     ],
                   ],
                 ),
@@ -1083,10 +1138,20 @@ class _ActionChip extends StatelessWidget {
 }
 
 class _AckRequest extends StatelessWidget {
-  const _AckRequest({required this.reminders, required this.onAcknowledge});
+  const _AckRequest({
+    super.key,
+    required this.reminders,
+    required this.progress,
+    required this.onAcknowledge,
+    required this.onRetry,
+  });
 
   final int reminders;
+
+  /// Null until the button is pressed; then sending or queued.
+  final AckProgress? progress;
   final VoidCallback onAcknowledge;
+  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -1094,23 +1159,70 @@ class _AckRequest extends StatelessWidget {
     final theme = Theme.of(context);
     final dark = theme.brightness == Brightness.dark;
     final color = dark ? const Color(0xFFFBBF24) : const Color(0xFFB45309);
+    final muted = theme.colorScheme.onSurfaceVariant;
+    final textStyle = theme.textTheme.bodySmall?.copyWith(
+      color: color,
+      fontWeight: FontWeight.w600,
+    );
+
+    if (progress == AckProgress.sending) {
+      return SizedBox(
+        height: 36,
+        child: Row(
+          children: [
+            SizedBox.square(
+              dimension: 14,
+              child: CircularProgressIndicator(strokeWidth: 2, color: muted),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                s.t('ack_sending'),
+                style: textStyle?.copyWith(color: muted),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (progress == AckProgress.queued) {
+      return Row(
+        children: [
+          Icon(Icons.cloud_off_rounded, size: 16, color: color),
+          const SizedBox(width: 6),
+          Expanded(child: Text(s.t('ack_queued'), style: textStyle)),
+          const SizedBox(width: 8),
+          TextButton(
+            style: TextButton.styleFrom(
+              minimumSize: const Size(0, 36),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              foregroundColor: color,
+              textStyle: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            onPressed: onRetry,
+            child: Text(s.t('ack_retry')),
+          ),
+        ],
+      );
+    }
 
     return Row(
       children: [
         Icon(Icons.schedule_rounded, size: 16, color: color),
         const SizedBox(width: 6),
         Expanded(
-          child: Text(
-            switch (reminders) {
-              0 => s.t('awaiting_ack'),
-              1 => s.t('reminder_sent_one'),
-              _ => s.t('reminders_sent', {'count': '$reminders'}),
-            },
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+          child: Text(switch (reminders) {
+            0 => s.t('awaiting_ack'),
+            1 => s.t('reminder_sent_one'),
+            _ => s.t('reminders_sent', {'count': '$reminders'}),
+          }, style: textStyle),
         ),
         const SizedBox(width: 8),
         // The theme's full-width minimum size cannot be used in a Row.

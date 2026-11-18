@@ -14,13 +14,24 @@ class ActionRunner {
   Future<String?> run(
     MessageAction action, {
     Map<String, String> headers = const {},
+  }) async => (await send(action, headers: headers)).error;
+
+  /// Runs [action] and tells a refusal (worth showing) from a failure that
+  /// may pass later (no network, server unavailable).
+  Future<ActionResult> send(
+    MessageAction action, {
+    Map<String, String> headers = const {},
   }) async {
     final uri = Uri.tryParse(action.url);
-    if (uri == null || !uri.hasScheme) return 'Invalid URL';
+    if (uri == null || !uri.hasScheme) {
+      return const ActionResult.refused('Invalid URL');
+    }
 
     if (!action.isHttp) {
       final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
-      return opened ? null : 'Unable to open ${uri.host}';
+      return opened
+          ? const ActionResult.ok()
+          : ActionResult.refused('Unable to open ${uri.host}');
     }
 
     try {
@@ -39,17 +50,38 @@ class ActionRunner {
         final response = await _client
             .send(request)
             .timeout(const Duration(seconds: 15));
+        final status = response.statusCode;
         final location = response.headers['location'];
-        if ((response.statusCode == 307 || response.statusCode == 308) &&
-            location != null) {
+        if ((status == 307 || status == 308) && location != null) {
           target = target.resolve(location);
           continue;
         }
-        return response.statusCode < 300 ? null : 'HTTP ${response.statusCode}';
+        if (status < 300) return const ActionResult.ok();
+        // Busy or down: worth trying again later.
+        if (status == 408 || status == 429 || status >= 500) {
+          return ActionResult.unavailable('HTTP $status');
+        }
+        return ActionResult.refused('HTTP $status');
       }
-      return 'Too many redirects';
+      return const ActionResult.refused('Too many redirects');
     } catch (e) {
-      return e.toString();
+      // No network, timeout, TLS: the request may not have left.
+      return ActionResult.unavailable(e.toString());
     }
   }
+}
+
+/// Outcome of an action: done, refused for good, or to try again later.
+class ActionResult {
+  const ActionResult.ok() : error = null, retry = false;
+  const ActionResult.refused(String this.error) : retry = false;
+  const ActionResult.unavailable(String this.error) : retry = true;
+
+  /// Null when the action succeeded.
+  final String? error;
+
+  /// The failure may pass: no network, timeout, server unavailable.
+  final bool retry;
+
+  bool get ok => error == null;
 }

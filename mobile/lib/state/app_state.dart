@@ -94,6 +94,7 @@ class AppState extends ChangeNotifier {
   Future<void> init() async {
     servers = await storage.loadServers();
     subscriptions = await storage.loadSubscriptions();
+    await _loadPendingAcks();
     // Logos already on disk are decoded before the first frame.
     await IconCache.warm(
       subscriptions.map((s) => s.iconUrl).whereType<String>(),
@@ -126,6 +127,7 @@ class AppState extends ChangeNotifier {
       // Realtime is best effort; the next refresh catches up.
     }
     unawaited(refreshAll().catchError((_) {}));
+    unawaited(retryAcks());
 
     pushPermission = await push.permission();
     if (subscriptions.isNotEmpty && pushPermission != PushPermission.denied) {
@@ -275,6 +277,7 @@ class AppState extends ChangeNotifier {
     _updateBadge();
     realtime.reconnectAll();
     pushPermission = await push.permission();
+    unawaited(retryAcks());
     await refreshAll();
   }
 
@@ -608,29 +611,134 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Acknowledgements on their way, by [_ackKey]: sending, waiting for the
+  /// network, or just delivered (until the server copy says so).
+  final Map<String, PendingAck> _acks = {};
+  final Set<String> _acksInFlight = {};
+  Timer? _ackRetry;
+
+  static String _ackKey(String subscriptionId, Object id) =>
+      '$subscriptionId#$id';
+
+  /// Where the acknowledgement of a message stands on this device.
+  AckProgress? ackProgress(String subscriptionId, int messageId) =>
+      _acks[_ackKey(subscriptionId, messageId)]?.progress;
+
   /// Acknowledges message [messageId] as the signed-in user (or as this
-  /// device). Returns null on success, or an error message.
+  /// device). Without network the acknowledgement is kept and sent again
+  /// later. Returns an error message only when the server refused it.
   Future<String?> acknowledge(
     String subscriptionId,
     MessageAction action, {
     int? messageId,
   }) async {
-    final subscription = this.subscription(subscriptionId);
-    if (subscription == null) return null;
-    final error = await ActionRunner().run(
-      action,
-      headers: await ackHeaders(subscription.serverUrl),
+    final key = _ackKey(subscriptionId, messageId ?? action.url);
+    if (_acksInFlight.contains(key)) return null;
+    _acks[key] = PendingAck(
+      subscriptionId: subscriptionId,
+      messageId: messageId,
+      action: action,
+      progress: AckProgress.sending,
     );
-    if (error == null && messageId != null) {
-      // The server tells the others, not this device: its alert goes away.
-      unawaited(
-        push
-            .removeDelivered(subscription.topic, id: messageId)
-            .catchError((_) {}),
+    notifyListeners();
+    return _sendAck(key);
+  }
+
+  Future<String?> _sendAck(String key) async {
+    final pending = _acks[key];
+    if (pending == null || !_acksInFlight.add(key)) return null;
+    try {
+      final subscription = this.subscription(pending.subscriptionId);
+      if (subscription == null) {
+        _acks.remove(key);
+        return null;
+      }
+      final result = await ActionRunner().send(
+        pending.action,
+        headers: await ackHeaders(subscription.serverUrl),
       );
+
+      if (result.retry) {
+        _acks[key] = pending.copyWith(progress: AckProgress.queued);
+        _scheduleAckRetry();
+        return null;
+      }
+      if (!result.ok) {
+        _acks.remove(key);
+        return result.error;
+      }
+
+      _acks[key] = pending.copyWith(progress: AckProgress.done);
+      final messageId = pending.messageId;
+      if (messageId != null) {
+        // The server tells the others, not this device: its alert goes away.
+        unawaited(
+          push
+              .removeDelivered(subscription.topic, id: messageId)
+              .catchError((_) {}),
+        );
+      }
+      notifyListeners();
+      try {
+        await refresh(pending.subscriptionId);
+      } catch (_) {
+        // Shown as acknowledged anyway; the next sync brings the details.
+      }
+      return null;
+    } finally {
+      _acksInFlight.remove(key);
+      await _savePendingAcks();
+      notifyListeners();
     }
-    await refresh(subscriptionId);
-    return error;
+  }
+
+  /// Sends the acknowledgements kept without network again. Those that
+  /// someone acknowledged meanwhile are dropped.
+  Future<void> retryAcks() async {
+    _ackRetry?.cancel();
+    _ackRetry = null;
+    for (final entry in _acks.entries.toList()) {
+      final pending = entry.value;
+      if (pending.progress != AckProgress.queued) continue;
+      final id = pending.messageId;
+      final cached = id == null
+          ? null
+          : (_messages[pending.subscriptionId] ??
+                    await storage.loadMessages(pending.subscriptionId))
+                .where((m) => m.id == id)
+                .firstOrNull;
+      if (cached != null && !cached.awaitsAck) {
+        _acks.remove(entry.key);
+        continue;
+      }
+      await _sendAck(entry.key);
+    }
+    await _savePendingAcks();
+    notifyListeners();
+  }
+
+  void _scheduleAckRetry() {
+    if (_ackRetry?.isActive == true) return;
+    _ackRetry = Timer(
+      const Duration(seconds: 30),
+      () => unawaited(retryAcks()),
+    );
+  }
+
+  Future<void> _savePendingAcks() => storage.savePendingAcks([
+    for (final pending in _acks.values)
+      if (pending.progress == AckProgress.queued) pending.toJson(),
+  ]);
+
+  Future<void> _loadPendingAcks() async {
+    for (final json in await storage.loadPendingAcks()) {
+      final pending = PendingAck.fromJson(json);
+      _acks[_ackKey(
+            pending.subscriptionId,
+            pending.messageId ?? pending.action.url,
+          )] =
+          pending;
+    }
   }
 
   /// Identifies who acknowledges: the account token, or the device name.
@@ -652,6 +760,46 @@ class AppState extends ChangeNotifier {
       listener.cancel();
     }
     realtime.dispose();
+    _ackRetry?.cancel();
     super.dispose();
   }
+}
+
+enum AckProgress { sending, queued, done }
+
+/// An acknowledgement on its way to the server.
+class PendingAck {
+  const PendingAck({
+    required this.subscriptionId,
+    required this.action,
+    required this.progress,
+    this.messageId,
+  });
+
+  final String subscriptionId;
+  final int? messageId;
+  final MessageAction action;
+  final AckProgress progress;
+
+  PendingAck copyWith({required AckProgress progress}) => PendingAck(
+    subscriptionId: subscriptionId,
+    messageId: messageId,
+    action: action,
+    progress: progress,
+  );
+
+  factory PendingAck.fromJson(Map<String, dynamic> json) => PendingAck(
+    subscriptionId: json['subscription'] as String,
+    messageId: (json['message'] as num?)?.toInt(),
+    action: MessageAction.fromJson(
+      (json['action'] as Map).cast<String, dynamic>(),
+    ),
+    progress: AckProgress.queued,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'subscription': subscriptionId,
+    'message': ?messageId,
+    'action': action.toJson(),
+  };
 }
