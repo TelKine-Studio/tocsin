@@ -33,9 +33,10 @@ $app = Application::configure(basePath: dirname(__DIR__))
             headers: Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_PORT | Request::HEADER_X_FORWARDED_PROTO | Request::HEADER_X_FORWARDED_PREFIX,
         );
         $middleware->append(CloudflareClientIp::class);
+        // https decided for every request (web pages and the ntfy API alike).
+        $middleware->append(SecurityHeaders::class);
 
         $middleware->web(append: [
-            SecurityHeaders::class,
             EnsureApplicationIsInstalled::class,
             EnsureUserIsActive::class,
             SetLocale::class,
@@ -47,11 +48,6 @@ $app = Application::configure(basePath: dirname(__DIR__))
         $middleware->prependToPriorityList(
             before: AuthenticatesRequests::class,
             prepend: EnsureApplicationIsInstalled::class,
-        );
-        // https links and redirects decided before the redirect to the login page.
-        $middleware->prependToPriorityList(
-            before: EnsureApplicationIsInstalled::class,
-            prepend: SecurityHeaders::class,
         );
 
         $middleware->redirectGuestsTo(fn () => route('login'));

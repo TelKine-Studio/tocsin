@@ -102,10 +102,13 @@ Future<void> _openFromPush(AppState state, Map<String, dynamic> payload) async {
     return;
   }
 
-  navigatorKey.currentState?.push(
+  // One topic at a time over the home screen: back always returns to the
+  // list of topics, however many notifications were opened.
+  navigatorKey.currentState?.pushAndRemoveUntil(
     MaterialPageRoute(
       builder: (_) => TopicScreen(subscriptionId: subscriptionId),
     ),
+    (route) => route.isFirst,
   );
 }
 

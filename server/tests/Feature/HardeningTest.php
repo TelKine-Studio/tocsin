@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Message;
 use App\Models\RelayClient;
 use App\Models\RelayToken;
 use App\Models\Topic;
@@ -14,6 +15,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\URL;
 use PragmaRX\Google2FA\Google2FA;
 use Tests\TestCase;
 
@@ -207,5 +209,24 @@ class HardeningTest extends TestCase
             ->assertHeader('Strict-Transport-Security', 'max-age=31536000')
             ->assertHeader('Content-Security-Policy');
         $this->get('http://10.0.0.9:8080/dashboard')->assertRedirect()->assertHeaderMissing('Strict-Transport-Security');
+    }
+
+    public function test_the_ntfy_api_behind_a_plain_http_proxy_builds_and_accepts_https_links(): void
+    {
+        User::factory()->create();
+        Installation::flush();
+        app(Settings::class)->set(['app.url' => 'https://push.example.com']);
+
+        $this->get('http://push.example.com/zzqtest')->assertRedirect('https://push.example.com/topics/zzqtest');
+
+        // A signed acknowledgement link, built on https, reaches Tocsin over http.
+        $message = Message::factory()->for(Topic::factory())->create(['requires_ack' => true, 'dispatched_at' => now()]);
+        URL::forceRootUrl('https://push.example.com');
+        $url = $message->acknowledgeUrl();
+        URL::forceRootUrl(null);
+        $this->assertStringStartsWith('https://', $url);
+
+        $this->postJson(str_replace('https://', 'http://', $url))->assertOk()->assertJsonPath('acknowledged', true);
+        $this->assertNotNull($message->fresh()->acknowledged_at);
     }
 }

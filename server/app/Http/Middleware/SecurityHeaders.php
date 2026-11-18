@@ -14,7 +14,9 @@ use Symfony\Component\HttpFoundation\Response;
  *
  * Behind Cloudflare the proxy may reach Tocsin over plain HTTP: when the
  * instance URL is https and the request comes on its host, links and
- * redirects are https too.
+ * redirects are https too, and the request is treated as https so that
+ * signed links (acknowledgement buttons) are built and checked on https.
+ * It runs for every request, the ntfy API included.
  */
 class SecurityHeaders
 {
@@ -22,7 +24,13 @@ class SecurityHeaders
     {
         $url = (string) app(Settings::class)->get('app.url');
         $https = $request->isSecure() || (str_starts_with($url, 'https://') && strcasecmp((string) parse_url($url, PHP_URL_HOST), $request->getHost()) === 0);
-        URL::forceScheme($https && ! $request->isSecure() ? 'https' : null);
+        if ($https && ! $request->isSecure()) {
+            $request->server->set('HTTPS', 'on');
+            $request->headers->set('X-Forwarded-Proto', 'https');
+            $request->server->set('SERVER_PORT', 443);
+            $request->headers->remove('X-Forwarded-Port');
+        }
+        URL::forceScheme($https ? 'https' : null);
 
         $response = $next($request);
 

@@ -24,16 +24,30 @@ class ActionRunner {
     }
 
     try {
-      final request = http.Request(action.method, uri)
-        ..headers.addAll(action.headers)
-        ..headers.addAll(headers);
-      if (action.body != null && action.body!.isNotEmpty) {
-        request.body = action.body!;
+      // A POST is not followed through redirects by the HTTP client: a 307
+      // or 308 (http -> https, for instance) is sent again to its target,
+      // any other redirect is a failure rather than a silent success.
+      var target = uri;
+      for (var hop = 0; hop < 3; hop++) {
+        final request = http.Request(action.method, target)
+          ..followRedirects = false
+          ..headers.addAll(action.headers)
+          ..headers.addAll(headers);
+        if (action.body != null && action.body!.isNotEmpty) {
+          request.body = action.body!;
+        }
+        final response = await _client
+            .send(request)
+            .timeout(const Duration(seconds: 15));
+        final location = response.headers['location'];
+        if ((response.statusCode == 307 || response.statusCode == 308) &&
+            location != null) {
+          target = target.resolve(location);
+          continue;
+        }
+        return response.statusCode < 300 ? null : 'HTTP ${response.statusCode}';
       }
-      final response = await _client
-          .send(request)
-          .timeout(const Duration(seconds: 15));
-      return response.statusCode < 400 ? null : 'HTTP ${response.statusCode}';
+      return 'Too many redirects';
     } catch (e) {
       return e.toString();
     }
